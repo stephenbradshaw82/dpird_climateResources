@@ -73,18 +73,20 @@ get_netcdf_time3h_index <- function(year, month, day, clock_hour) {
 #' Function takes df of yyyymm raw data and assigns hs, uwnd and vwnd records from CMIP6
 #' @list_df_name list df (raw file) and name (yyyydd) for saving
 #' @required.packages vector of packages used in R
+#' @input_filePath file path to netcdf files
 #' @output_filePath file path for temporary outputs
 #' @returns NULL writes out files on the fly into output_filePath
-func_assignNetCDF_parallel <- function(list_df_name, required.packages = req_packages, output_filePath = "04_netCDFcombinedWithRaw/") {
+
+func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = req_packages
+                                       , input_filePath
+                                       , output_filePath) {
   
   #--> Test ####
-  # # tmp_df <- cdfl[[10]][[1]]
-  # # tmp_name <- cdfl[[10]][[2]]
-  # tmp_df <- cdfl[[22]][[1]] #%>% filter(sitef=="WOODMAN POINT")
-  # tmp_name <- cdfl[[22]][[2]] #%>% filter(sitef=="WOODMAN POINT")
-  # netcdf.path = dirNETCDFOutputs
+  # tmp_df <- cdfl[[10]][[1]]
+  # tmp_name <- cdfl[[10]][[2]]
   # required.packages <- req_packages
-  # output_filePath = "04_netCDFcombinedWithRaw/"
+  # input_filePath <- dirRdsCMIP6#"03_netCDFrds_CMIP6"
+  # output_filePath <- dirRdsCMIP6_output#"netCDFrds_CMIP6_output"
   #####
   
   #--> Install packages ####
@@ -95,7 +97,7 @@ func_assignNetCDF_parallel <- function(list_df_name, required.packages = req_pac
   tmp_name <- list_df_name[[2]]
   
   #--> read in netcdf (3: hs, uwnd and vwnd) #####
-  tmp_ncdf <- readRDS(dir(dirNETCDFOutputs, full.names=TRUE)[dir(dirNETCDFOutputs) %>% str_detect(tmp_name)])
+  tmp_ncdf <- readRDS(dir(input_filePath, full.names=TRUE)[dir(input_filePath) %>% str_detect(tmp_name)])
   
   #                         lon x lat x time
   # hmap_matrix(tmp_ncdf[[1]][6,,1], rotateCCW=FALSE, title="Test")
@@ -148,7 +150,7 @@ func_assignNetCDF_parallel <- function(list_df_name, required.packages = req_pac
 
   
   #--> Save output ####
-  saveRDS(tmp_df, paste0(output_filePath,tmp_name,"_netCDFwithRaw.rds") )
+  saveRDS(tmp_df, paste0(output_filePath, "/",tmp_name,"_netcdfCMIP6withRaw.rds") )
   
   gc()
   
@@ -156,7 +158,6 @@ func_assignNetCDF_parallel <- function(list_df_name, required.packages = req_pac
   return()
   #####
 }
-
 
 ###############################################################
 ###############################################################

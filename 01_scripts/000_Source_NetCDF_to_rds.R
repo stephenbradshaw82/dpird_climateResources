@@ -80,7 +80,6 @@ dirRdsBRAN  <- "M:/Fisheries Research/ASA_ClimateData/02_netCDFrds_BRAN"
 # dirRdsBRAN  <- "02_netCDFrds_BRAN"
 
 
-
 ##Above directories will get created in current working directory
 func_checkCreateDirectory(dirRdsBRAN)
 func_checkCreateDirectory(dirRdsCMIP6)
