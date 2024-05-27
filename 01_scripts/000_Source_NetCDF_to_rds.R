@@ -74,10 +74,10 @@ source(paste0(dirParent, "/00_src/functions.R"))
 
 #--> [USER IMPUT] Set Other Directories ####
 dirScripts  <- paste0(dirParent, "01_scripts")
-dirRdsCMIP6 <- "M:/Fisheries Research/ASA_ClimateData/03_netCDFrds_CMIP6"
-dirRdsBRAN  <- "M:/Fisheries Research/ASA_ClimateData/02_netCDFrds_BRAN"
-# dirRdsCMIP6 <- "03_netCDFrds_CMIP6"
-# dirRdsBRAN  <- "02_netCDFrds_BRAN"
+# dirRdsCMIP6 <- "M:/Fisheries Research/ASA_ClimateData/03_netCDFrds_CMIP6"
+# dirRdsBRAN  <- "M:/Fisheries Research/ASA_ClimateData/02_netCDFrds_BRAN"
+dirRdsCMIP6 <- "03_netCDFrds_CMIP6"
+dirRdsBRAN  <- "02_netCDFrds_BRAN"
 
 
 ##Above directories will get created in current working directory
@@ -98,7 +98,7 @@ options(scipen = 999)
 #' start.year will be adjusted in BRAN code to have a minimum value of 1993
 #' end.year will be adjusted in BRAN code to have a minimum value of 1993
 
-start.year <- 1990 
+start.year <- 2018#1990 
 end.year   <- Sys.Date() %>% year() %>% "+"(2)
 
 #--> [USER INPUT] Spatial Extents ####
@@ -269,7 +269,7 @@ if ("require" == "BRANdata"){
   input_branch <- "/ocean_"
   # input_stem <- c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
   
-  input_stem <- c("eta_t_", "salt_", "temp_")
+  input_stem <- c("eta_t_", "temp_")
   
   ## Initialize an empty data frame to store permutations
   chores <- data.frame(treeNoLeaves = character(), stringsAsFactors = FALSE)
@@ -321,6 +321,23 @@ if ("require" == "BRANdata"){
   ##Assuming your tibble is named chores_expanded
   chores_expanded$treefull <- paste0(chores_expanded$treeNoLeaves, ".nc") 
   chores_expanded <- chores_expanded %>% select(-treeNoLeaves)
+  
+  #---> Ignore files that been downloaded, extracted and saved ####
+  chores_already_processed <- c()
+  for (i in 1:length(chores_expanded$treefull)){
+    
+    netcdf_partname <- chores_expanded$treefull[i] %>% str_split("/") %>% lapply(tail,1) %>% unlist() %>% str_remove(".nc")
+    
+    if (sum(str_detect(dir(dirRdsBRAN),netcdf_partname)) == 1){
+      chores_already_processed[i] <- TRUE
+      } else {
+        chores_already_processed[i] <- FALSE
+      }
+  }
+  
+  chores_expanded <- chores_expanded[!chores_already_processed,]
+
+  
   #---> Extract and Save ####
   for (m in 1:dim(chores_expanded)[1]){
   # for (m in c(1, 100, 6000, 7750)){
@@ -339,7 +356,6 @@ if ("require" == "BRANdata"){
     lat.start <- which.min(abs( lat - lat.south) )
     lat.end <- which.min(abs( lat - lat.north) )
     
-
     #--> Some metrics have depth, others a single level ####
     ##If metric has no depth component
     if (length(nc$var[[varname]]$varsize) == 3){
