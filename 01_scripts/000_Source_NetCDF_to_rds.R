@@ -139,106 +139,133 @@ if ("require" == "CMIP6data"){
   yvec <- seq(start.year, end.year,1)
   mvec <- seq(1,12,1) %>% str_pad(2,pad="0")
   
-  #---> Extract and Save ####
-  for (m in 1:length(yvec)){
+  
+  #---> Define Chores ####
+  # Define the input variables
+  input_head <- "ww3."
+  branch <- NA
+  
+  ## Create a dataframe
+  chores <- expand.grid(yvec = yvec, mvec = mvec) %>% arrange(yvec)
+  
+  # Add the columns 'input_head' and 'branch'
+  chores$input_head <- input_head
+  chores$branch <- branch
+  
+  # Add the 'branch' column based on the value of 'yvec'
+  chores$branch <- ifelse(chores$yvec >= 2015,
+                      "https://data-cbr.csiro.au/thredds/dodsC/catch_all/oa-cmip6-wave/UniMelb-CSIRO_CMIP6_projections/ssp585/ACCESS-CM2/CDFAC1/ww3_ounf_glout/",
+                      "https://data-cbr.csiro.au/thredds/dodsC/catch_all/oa-cmip6-wave/UniMelb-CSIRO_CMIP6_projections/historical/ACCESS-CM2/CDFAC1/ww3_ounf_glout/")
+  
+  # Reorder the columns to match the desired structure
+  chores <- chores[, c("branch", "input_head", "yvec", "mvec")]
+  
+  chores <- chores %>%
+    mutate(input = paste0(branch, input_head, yvec, mvec))
+  
+  
+  yyyymm <- expand.grid(yvec = yvec, mvec = mvec) %>% arrange(yvec, mvec)
+  yyyymm <- paste0(yyyymm$yvec, yyyymm$mvec)
+
+  
+  #---> Ignore files that have been downloaded, extracted and saved ####
+  chores_already_processed <- c()
+  for (i in 1:length(yyyymm)){
+
+    netcdf_partname <- yyyymm[i]
     
-    ##Year loop informs file path
-    if (yvec[m] >= 2015){
-      ##>= 2015
-      input_branch <- "https://data-cbr.csiro.au/thredds/dodsC/catch_all/oa-cmip6-wave/UniMelb-CSIRO_CMIP6_projections/ssp585/ACCESS-CM2/CDFAC1/ww3_ounf_glout/"
+    if (sum(str_detect(dir(dirRdsCMIP6),netcdf_partname)) == 1){
+      chores_already_processed[i] <- TRUE
     } else {
-      ##<= 2014
-      input_branch <- "https://data-cbr.csiro.au/thredds/dodsC/catch_all/oa-cmip6-wave/UniMelb-CSIRO_CMIP6_projections/historical/ACCESS-CM2/CDFAC1/ww3_ounf_glout/"
+      chores_already_processed[i] <- FALSE
     }
+  }
+  
+  chores <- chores[!chores_already_processed,]
+  
+  
+  #---> Extract and Save ####
+  # for (m in 1:length(yvec)){
+  for (m in 1:dim(chores)[1]){
     
+    ##wnd
+    inputfile1 <- paste0(chores$input[m], input_tail1)
     
-    ##Month informs file name
-    for (n in 1:length(mvec)){
+    ##hs
+    inputfile2 <- paste0(chores$input[m], input_tail2)
+    
+    #---> Open NC for specific VARIABLE and YEAR/MONTH ####
+    nc1 <- nc_open(inputfile1)
+    nc2 <- nc_open(inputfile2)
       
-      ##wnd
-      inputfile1 <- paste0(input_branch, input_head, paste0(yvec[m], mvec[n]), input_tail1)
+    ##Notes (commended syntax to check variables)
+    {
+      # ##Trying to get spatial grid details
+      # nc %>% str()
+      # nc$var$MAPSTA$size
+      # nc$var$MAPSTA$dim
+      # nc$var$uwnd
+      # # 3 hrly * 31 days
+      # # 24/3 * 31
+      # nc$var$uwnd$units
+      # nc$var$uwnd %>% str() 
+    }
       
-      ##hs
-      inputfile2 <- paste0(input_branch, input_head, paste0(yvec[m], mvec[n]), input_tail2)
+    ##Get vectors in nc data
+    lng <- ncvar_get(nc1, "longitude") %>% as.vector()
+    lat <- ncvar_get(nc1, "latitude") %>% as.vector()
       
-      #---> Open NC for specific VARIABLE and YEAR/MONTH ####
-      nc1 <- nc_open(inputfile1)
-      nc2 <- nc_open(inputfile2)
+    ##Encompass Western Australia (WA)
+    lng.start <- which.min(abs( lng - lng.west) )
+    lng.end <- which.min(abs( lng - lng.east) )
+    lat.start <- which.min(abs( lat - lat.south) )
+    lat.end <- which.min(abs( lat - lat.north) )
       
-      ##Notes (commended syntax to check variables)
-      {
-        # ##Trying to get spatial grid details
-        # nc %>% str()
-        # nc$var$MAPSTA$size
-        # nc$var$MAPSTA$dim
-        # nc$var$uwnd
-        # # 3 hrly * 31 days
-        # # 24/3 * 31
-        # nc$var$uwnd$units
-        # nc$var$uwnd %>% str() 
-      }
-      
-      ##Get vectors in nc data
-      lng <- ncvar_get(nc1, "longitude") %>% as.vector()
-      lat <- ncvar_get(nc1, "latitude") %>% as.vector()
-      
-      ##Encompass Western Australia (WA)
-      lng.start <- which.min(abs( lng - lng.west) )
-      lng.end <- which.min(abs( lng - lng.east) )
-      lat.start <- which.min(abs( lat - lat.south) )
-      lat.end <- which.min(abs( lat - lat.north) )
-      
-      
-      #--> Extract (test) significant wave height ####
-      l.hs <- ncvar_get(nc2, "hs", start=c(lng.start,lat.start,1)
-                        , count=c(length(lng[lng.start:lng.end])     ##lng width of WA
-                                  ,length(lat[lat.start:lat.end])    ##lat height of WA
-                                  ,nc2$var$hs$varsize[3]             ##all time
+    #--> Extract (test) significant wave height ####
+    l.hs <- ncvar_get(nc2, "hs", start=c(lng.start,lat.start,1)
+                      , count=c(length(lng[lng.start:lng.end])     ##lng width of WA
+                                ,length(lat[lat.start:lat.end])    ##lat height of WA
+                                ,nc2$var$hs$varsize[3]             ##all time
+                      )
+    ) 
+    
+    #--> Extract data for uwnd ####
+    l.uwnd <- ncvar_get(nc1, "uwnd", start=c(lng.start,lat.start,1)
+                        , count=c(length(lng[lng.start:lng.end])
+                                  ,length(lat[lat.start:lat.end])
+                                  ,nc1$var$uwnd$varsize[3]
                         )
-      ) 
+    ) 
       
-      #--> Extract data for uwnd ####
-      l.uwnd <- ncvar_get(nc1, "uwnd", start=c(lng.start,lat.start,1)
-                          , count=c(length(lng[lng.start:lng.end])
-                                    ,length(lat[lat.start:lat.end])
-                                    ,nc1$var$uwnd$varsize[3]
-                          )
-      ) 
+    #--> Extract data for vwnd ####
+    l.vwnd <- ncvar_get(nc1, "vwnd", start=c(lng.start,lat.start,1)
+                        , count=c(length(lng[lng.start:lng.end])
+                                  ,length(lat[lat.start:lat.end])
+                                  ,nc1$var$vwnd$varsize[3]
+                        )
+    )
       
-      #--> Extract data for vwnd ####
-      l.vwnd <- ncvar_get(nc1, "vwnd", start=c(lng.start,lat.start,1)
-                          , count=c(length(lng[lng.start:lng.end])
-                                    ,length(lat[lat.start:lat.end])
-                                    ,nc1$var$vwnd$varsize[3]
-                          )
-      )
-      
-      ##Notes (commended plotting syntax to check spatial extents and product)
-      {
-        # l.hs[,,1] %>% hmap_matrix(title="Test: WA: significant wave height", rotateCCW = FALSE)
-        # l.hs[,,1] %>% dim()
-      }
+    ##Notes (commended plotting syntax to check spatial extents and product)
+    {
+      # l.hs[,,1] %>% hmap_matrix(title="Test: WA: significant wave height", rotateCCW = FALSE)
+      # l.hs[,,1] %>% dim()
+    }
       
       
-      ##Group environmental metrics into single list for year_month record
-      myl <- list(l.hs,
-                  l.uwnd,
-                  l.vwnd
-      )
+    ##Group environmental metrics into single list for year_month record
+    myl <- list(l.hs,
+                l.uwnd,
+                l.vwnd
+    )
       
-      ##Save output
-      saveRDS(myl, paste0(dirRdsCMIP6, "/", paste0("Data_cmip6_", paste0(yvec[m], mvec[[n]]),".rds")))
-      
-      rm(myl)
-      gc()
-      Sys.sleep(1)
-      
-    } #end of n
     
+    ##Save output
+    saveRDS(myl, paste0(dirRdsCMIP6, "/", paste0("Data_cmip6_", paste0(chores$yvec[m], chores$mvec[m]),".rds")))
+      
+    rm(myl)
     gc()
     Sys.sleep(1)
-    
-    
+      
   } #end of m
   #####
 }
