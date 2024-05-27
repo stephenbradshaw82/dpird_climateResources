@@ -1,5 +1,5 @@
 #' Author: Stephen Bradshaw
-#' Written and mainted by: Stephen Bradshaw
+#' Written and maintained by: Stephen Bradshaw
 #' Contact: stephen.bradshaw@dpird.wa.gov.au
 #'          stephen.bradshaw@utas.edu.au
 #'          https://www.linkedin.com/in/stephenbradshaw82/
@@ -74,8 +74,12 @@ source(paste0(dirParent, "/00_src/functions.R"))
 
 #--> [USER IMPUT] Set Other Directories ####
 dirScripts  <- paste0(dirParent, "01_scripts")
-dirRdsCMIP6 <- "03_netCDFrds_CMIP6"
-dirRdsBRAN  <- "02_netCDFrds_BRAN"
+dirRdsCMIP6 <- "M:/Fisheries Research/ASA_ClimateData/03_netCDFrds_CMIP6"
+dirRdsBRAN  <- "M:/Fisheries Research/ASA_ClimateData/02_netCDFrds_BRAN"
+# dirRdsCMIP6 <- "03_netCDFrds_CMIP6"
+# dirRdsBRAN  <- "02_netCDFrds_BRAN"
+
+
 
 ##Above directories will get created in current working directory
 func_checkCreateDirectory(dirRdsBRAN)
