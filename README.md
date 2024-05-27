@@ -10,6 +10,7 @@ This repo provides a series of scripts and functions to:
 
 
 ## Files
+```plaintext
 Parent Folder
 ├── 00_src
 │   └── functions.R
@@ -27,3 +28,4 @@ Parent Folder
     ├── rds_file2
     ├── ...
     └── rds_fileN
+```
