@@ -98,7 +98,7 @@ options(scipen = 999)
 #' start.year will be adjusted in BRAN code to have a minimum value of 1993
 #' end.year will be adjusted in BRAN code to have a minimum value of 1993
 
-start.year <- 2018#1990 
+start.year <- 1990 
 end.year   <- Sys.Date() %>% year() %>% "+"(2)
 
 #--> [USER INPUT] Spatial Extents ####
@@ -231,12 +231,12 @@ if ("require" == "CMIP6data"){
       
       rm(myl)
       gc()
-      Sys.sleep(2)
+      Sys.sleep(1)
       
     } #end of n
     
     gc()
-    Sys.sleep(2)
+    Sys.sleep(1)
     
     
   } #end of m
@@ -267,9 +267,8 @@ if ("require" == "BRANdata"){
   
   ##Note the ocean branch and subsequent stems are listed here. If ice and other features are required either modify the code (or ask)
   input_branch <- "/ocean_"
-  # input_stem <- c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
-  
-  input_stem <- c("eta_t_", "temp_")
+  input_stem <- c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
+  # input_stem <- c("eta_t_", "temp_")
   
   ## Initialize an empty data frame to store permutations
   chores <- data.frame(treeNoLeaves = character(), stringsAsFactors = FALSE)
