@@ -367,55 +367,61 @@ if ("require" == "BRANdata"){
   #---> Extract and Save ####
   for (m in 1:dim(chores_expanded)[1]){
   # for (m in c(1, 100, 6000, 7750)){
-    # m<-226
-    # m<-7000 #no xt
-    
+
     inputfile <- chores_expanded$treefull[m]
-    nc <- nc_open(inputfile)
-    varname <- nc$var %>% names() %>% tail(1)
     
-    ##Get vectors in nc data
-    lng <- ncvar_get(nc, ifelse("xt_ocean" %in% names(nc$dim), "xt_ocean", "xu_ocean")) %>% as.vector()
-    lat <- ncvar_get(nc, ifelse("yt_ocean" %in% names(nc$dim), "yt_ocean", "yu_ocean")) %>% as.vector()
+    tryCatch({
 
-    ##Encompass Western Australia (WA)
-    lng.start <- which.min(abs( lng - lng.west) )
-    lng.end <- which.min(abs( lng - lng.east) )
-    lat.start <- which.min(abs( lat - lat.south) )
-    lat.end <- which.min(abs( lat - lat.north) )
+      nc <- nc_open(inputfile)
+      varname <- nc$var %>% names() %>% tail(1)
+      
+      ##Get vectors in nc data
+      lng <- ncvar_get(nc, ifelse("xt_ocean" %in% names(nc$dim), "xt_ocean", "xu_ocean")) %>% as.vector()
+      lat <- ncvar_get(nc, ifelse("yt_ocean" %in% names(nc$dim), "yt_ocean", "yu_ocean")) %>% as.vector()
+      
+      ##Encompass Western Australia (WA)
+      lng.start <- which.min(abs( lng - lng.west) )
+      lng.end <- which.min(abs( lng - lng.east) )
+      lat.start <- which.min(abs( lat - lat.south) )
+      lat.end <- which.min(abs( lat - lat.north) )
+      
+      #--> Some metrics have depth, others a single level ####
+      ##If metric has no depth component
+      if (length(nc$var[[varname]]$varsize) == 3){
+        
+        mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1)
+                              , count=c(length(lng[lng.start:lng.end])          #lng width of WA
+                                        ,length(lat[lat.start:lat.end])         #lat width of WA
+                                        ,nc$var[[varname]]$varsize %>% tail(1)  #single record
+                              ))
+        
+      } else{
+        mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1,1)
+                              , count=c(length(lng[lng.start:lng.end])          #lng width of WA
+                                        ,length(lat[lat.start:lat.end])         #lat width of WA
+                                        ,-1                                     #all depths    
+                                        ,nc$var[[varname]]$varsize %>% tail(1)  #single record
+                              ))
+        
+      }
+      
+      ##Save output
+      saveRDS(mymetric, paste0(dirRdsBRAN, "/", paste0("Data_BRAN_", inputfile %>% str_split("/") %>% unlist() %>% tail(1) %>% str_remove(".nc"),".rds")))
+      
+      # rm(myl)
+      gc()
+      Sys.sleep(2)
+      
+      # Close the NetCDF file when done
+      nc_close(nc)
+    }, error = function(e) {
+      # If an error occurs, print a message and proceed to the next iteration
+      message("Error opening file: ", inputfile)
+      message("Skipping to the next file...")
+    })
     
-    #--> Some metrics have depth, others a single level ####
-    ##If metric has no depth component
-    if (length(nc$var[[varname]]$varsize) == 3){
-      
-      mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1)
-                            , count=c(length(lng[lng.start:lng.end])          #lng width of WA
-                                      ,length(lat[lat.start:lat.end])         #lat width of WA
-                                      ,nc$var[[varname]]$varsize %>% tail(1)  #single record
-                            ))
-      
-    } else{
-      mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1,1)
-                            , count=c(length(lng[lng.start:lng.end])          #lng width of WA
-                                      ,length(lat[lat.start:lat.end])         #lat width of WA
-                                      ,-1                                     #all depths    
-                                      ,nc$var[[varname]]$varsize %>% tail(1)  #single record
-                            ))
+    
 
-    }
-    
-    # ##Notes (commended plotting syntax to check spatial extents and product)
-    # {
-    #   tmp[,,1] %>% hmap_matrix(rotateCCW = TRUE, title = paste0(varname, " - Depth 0"))
-    #   tmp[,,]  %>% dim()
-    # }
-    
-    ##Save output
-    saveRDS(mymetric, paste0(dirRdsBRAN, "/", paste0("Data_BRAN_", inputfile %>% str_split("/") %>% unlist() %>% tail(1) %>% str_remove(".nc"),".rds")))
-    
-    # rm(myl)
-    gc()
-    Sys.sleep(2)
     
   } #end of m
     
