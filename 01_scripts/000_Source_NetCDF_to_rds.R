@@ -367,14 +367,16 @@ if ("require" == "BRANdata"){
   #---> Extract and Save ####
   for (m in 1:dim(chores_expanded)[1]){
   # for (m in c(1, 100, 6000, 7750)){
-
+    # m<-226
+    # m<-7000 #no xt
+    
     inputfile <- chores_expanded$treefull[m]
     nc <- nc_open(inputfile)
     varname <- nc$var %>% names() %>% tail(1)
-      
+    
     ##Get vectors in nc data
-    lng <- ncvar_get(nc, "xt_ocean") %>% as.vector()
-    lat <- ncvar_get(nc, "yt_ocean") %>% as.vector()
+    lng <- ncvar_get(nc, ifelse("xt_ocean" %in% names(nc$dim), "xt_ocean", "xu_ocean")) %>% as.vector()
+    lat <- ncvar_get(nc, ifelse("yt_ocean" %in% names(nc$dim), "yt_ocean", "yu_ocean")) %>% as.vector()
 
     ##Encompass Western Australia (WA)
     lng.start <- which.min(abs( lng - lng.west) )
