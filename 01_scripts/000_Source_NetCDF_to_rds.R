@@ -186,87 +186,93 @@ if ("require" == "CMIP6data"){
   
   #---> Extract and Save ####
   # for (m in 1:length(yvec)){
-  for (m in 1:dim(chores)[1]){
-    
-    ##wnd
-    inputfile1 <- paste0(chores$input[m], input_tail1)
-    
-    ##hs
-    inputfile2 <- paste0(chores$input[m], input_tail2)
-    
-    #---> Open NC for specific VARIABLE and YEAR/MONTH ####
-    nc1 <- nc_open(inputfile1)
-    nc2 <- nc_open(inputfile2)
+  
+  if (dim(chores)[1] > 0){
+    for (m in 1:dim(chores)[1]){
       
-    ##Notes (commended syntax to check variables)
-    {
-      # ##Trying to get spatial grid details
-      # nc %>% str()
-      # nc$var$MAPSTA$size
-      # nc$var$MAPSTA$dim
-      # nc$var$uwnd
-      # # 3 hrly * 31 days
-      # # 24/3 * 31
-      # nc$var$uwnd$units
-      # nc$var$uwnd %>% str() 
-    }
+      ##wnd
+      inputfile1 <- paste0(chores$input[m], input_tail1)
       
-    ##Get vectors in nc data
-    lng <- ncvar_get(nc1, "longitude") %>% as.vector()
-    lat <- ncvar_get(nc1, "latitude") %>% as.vector()
+      ##hs
+      inputfile2 <- paste0(chores$input[m], input_tail2)
       
-    ##Encompass Western Australia (WA)
-    lng.start <- which.min(abs( lng - lng.west) )
-    lng.end <- which.min(abs( lng - lng.east) )
-    lat.start <- which.min(abs( lat - lat.south) )
-    lat.end <- which.min(abs( lat - lat.north) )
+      #---> Open NC for specific VARIABLE and YEAR/MONTH ####
+      nc1 <- nc_open(inputfile1)
+      nc2 <- nc_open(inputfile2)
       
-    #--> Extract (test) significant wave height ####
-    l.hs <- ncvar_get(nc2, "hs", start=c(lng.start,lat.start,1)
-                      , count=c(length(lng[lng.start:lng.end])     ##lng width of WA
-                                ,length(lat[lat.start:lat.end])    ##lat height of WA
-                                ,nc2$var$hs$varsize[3]             ##all time
-                      )
-    ) 
-    
-    #--> Extract data for uwnd ####
-    l.uwnd <- ncvar_get(nc1, "uwnd", start=c(lng.start,lat.start,1)
-                        , count=c(length(lng[lng.start:lng.end])
-                                  ,length(lat[lat.start:lat.end])
-                                  ,nc1$var$uwnd$varsize[3]
+      ##Notes (commended syntax to check variables)
+      {
+        # ##Trying to get spatial grid details
+        # nc %>% str()
+        # nc$var$MAPSTA$size
+        # nc$var$MAPSTA$dim
+        # nc$var$uwnd
+        # # 3 hrly * 31 days
+        # # 24/3 * 31
+        # nc$var$uwnd$units
+        # nc$var$uwnd %>% str() 
+      }
+      
+      ##Get vectors in nc data
+      lng <- ncvar_get(nc1, "longitude") %>% as.vector()
+      lat <- ncvar_get(nc1, "latitude") %>% as.vector()
+      
+      ##Encompass Western Australia (WA)
+      lng.start <- which.min(abs( lng - lng.west) )
+      lng.end <- which.min(abs( lng - lng.east) )
+      lat.start <- which.min(abs( lat - lat.south) )
+      lat.end <- which.min(abs( lat - lat.north) )
+      
+      #--> Extract (test) significant wave height ####
+      l.hs <- ncvar_get(nc2, "hs", start=c(lng.start,lat.start,1)
+                        , count=c(length(lng[lng.start:lng.end])     ##lng width of WA
+                                  ,length(lat[lat.start:lat.end])    ##lat height of WA
+                                  ,nc2$var$hs$varsize[3]             ##all time
                         )
-    ) 
+      ) 
       
-    #--> Extract data for vwnd ####
-    l.vwnd <- ncvar_get(nc1, "vwnd", start=c(lng.start,lat.start,1)
-                        , count=c(length(lng[lng.start:lng.end])
-                                  ,length(lat[lat.start:lat.end])
-                                  ,nc1$var$vwnd$varsize[3]
-                        )
-    )
+      #--> Extract data for uwnd ####
+      l.uwnd <- ncvar_get(nc1, "uwnd", start=c(lng.start,lat.start,1)
+                          , count=c(length(lng[lng.start:lng.end])
+                                    ,length(lat[lat.start:lat.end])
+                                    ,nc1$var$uwnd$varsize[3]
+                          )
+      ) 
       
-    ##Notes (commended plotting syntax to check spatial extents and product)
-    {
-      # l.hs[,,1] %>% hmap_matrix(title="Test: WA: significant wave height", rotateCCW = FALSE)
-      # l.hs[,,1] %>% dim()
-    }
+      #--> Extract data for vwnd ####
+      l.vwnd <- ncvar_get(nc1, "vwnd", start=c(lng.start,lat.start,1)
+                          , count=c(length(lng[lng.start:lng.end])
+                                    ,length(lat[lat.start:lat.end])
+                                    ,nc1$var$vwnd$varsize[3]
+                          )
+      )
+      
+      ##Notes (commended plotting syntax to check spatial extents and product)
+      {
+        # l.hs[,,1] %>% hmap_matrix(title="Test: WA: significant wave height", rotateCCW = FALSE)
+        # l.hs[,,1] %>% dim()
+      }
       
       
-    ##Group environmental metrics into single list for year_month record
-    myl <- list(l.hs,
-                l.uwnd,
-                l.vwnd
-    )
+      ##Group environmental metrics into single list for year_month record
+      myl <- list(l.hs,
+                  l.uwnd,
+                  l.vwnd
+      )
       
+      
+      ##Save output
+      saveRDS(myl, paste0(dirRdsCMIP6, "/", paste0("Data_cmip6_", paste0(chores$yvec[m], chores$mvec[m]),".rds")))
+      
+      rm(myl)
+      gc()
+      Sys.sleep(1)
+      
+    } #end of m
     
-    ##Save output
-    saveRDS(myl, paste0(dirRdsCMIP6, "/", paste0("Data_cmip6_", paste0(chores$yvec[m], chores$mvec[m]),".rds")))
-      
-    rm(myl)
-    gc()
-    Sys.sleep(1)
-      
-  } #end of m
+  }
+  
+
   #####
 }
 
@@ -294,8 +300,8 @@ if ("require" == "BRANdata"){
   
   ##Note the ocean branch and subsequent stems are listed here. If ice and other features are required either modify the code (or ask)
   input_branch <- "/ocean_"
-  input_stem <- c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
-  # input_stem <- c("eta_t_", "temp_")
+  # input_stem <- c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
+  input_stem <- c("temp_")
   
   ## Initialize an empty data frame to store permutations
   chores <- data.frame(treeNoLeaves = character(), stringsAsFactors = FALSE)
@@ -365,66 +371,70 @@ if ("require" == "BRANdata"){
 
   
   #---> Extract and Save ####
-  for (m in 1:dim(chores_expanded)[1]){
-  # for (m in c(1, 100, 6000, 7750)){
-
-    inputfile <- chores_expanded$treefull[m]
-    
-    tryCatch({
-
-      nc <- nc_open(inputfile)
-      varname <- nc$var %>% names() %>% tail(1)
+  
+  if(dim(chores_expanded)[1] > 0){
+    for (m in 1:dim(chores_expanded)[1]){
+      # for (m in c(1, 100, 6000, 7750)){
       
-      ##Get vectors in nc data
-      lng <- ncvar_get(nc, ifelse("xt_ocean" %in% names(nc$dim), "xt_ocean", "xu_ocean")) %>% as.vector()
-      lat <- ncvar_get(nc, ifelse("yt_ocean" %in% names(nc$dim), "yt_ocean", "yu_ocean")) %>% as.vector()
+      inputfile <- chores_expanded$treefull[m]
       
-      ##Encompass Western Australia (WA)
-      lng.start <- which.min(abs( lng - lng.west) )
-      lng.end <- which.min(abs( lng - lng.east) )
-      lat.start <- which.min(abs( lat - lat.south) )
-      lat.end <- which.min(abs( lat - lat.north) )
-      
-      #--> Some metrics have depth, others a single level ####
-      ##If metric has no depth component
-      if (length(nc$var[[varname]]$varsize) == 3){
+      tryCatch({
         
-        mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1)
-                              , count=c(length(lng[lng.start:lng.end])          #lng width of WA
-                                        ,length(lat[lat.start:lat.end])         #lat width of WA
-                                        ,nc$var[[varname]]$varsize %>% tail(1)  #single record
-                              ))
+        nc <- nc_open(inputfile)
+        varname <- nc$var %>% names() %>% tail(1)
         
-      } else{
-        mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1,1)
-                              , count=c(length(lng[lng.start:lng.end])          #lng width of WA
-                                        ,length(lat[lat.start:lat.end])         #lat width of WA
-                                        ,-1                                     #all depths    
-                                        ,nc$var[[varname]]$varsize %>% tail(1)  #single record
-                              ))
+        ##Get vectors in nc data
+        lng <- ncvar_get(nc, ifelse("xt_ocean" %in% names(nc$dim), "xt_ocean", "xu_ocean")) %>% as.vector()
+        lat <- ncvar_get(nc, ifelse("yt_ocean" %in% names(nc$dim), "yt_ocean", "yu_ocean")) %>% as.vector()
         
-      }
+        ##Encompass Western Australia (WA)
+        lng.start <- which.min(abs( lng - lng.west) )
+        lng.end <- which.min(abs( lng - lng.east) )
+        lat.start <- which.min(abs( lat - lat.south) )
+        lat.end <- which.min(abs( lat - lat.north) )
+        
+        #--> Some metrics have depth, others a single level ####
+        ##If metric has no depth component
+        if (length(nc$var[[varname]]$varsize) == 3){
+          
+          mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1)
+                                , count=c(length(lng[lng.start:lng.end])          #lng width of WA
+                                          ,length(lat[lat.start:lat.end])         #lat width of WA
+                                          ,nc$var[[varname]]$varsize %>% tail(1)  #single record
+                                ))
+          
+        } else{
+          mymetric <- ncvar_get(nc, varname, start=c(lng.start,lat.start,1,1)
+                                , count=c(length(lng[lng.start:lng.end])          #lng width of WA
+                                          ,length(lat[lat.start:lat.end])         #lat width of WA
+                                          ,-1                                     #all depths    
+                                          ,nc$var[[varname]]$varsize %>% tail(1)  #single record
+                                ))
+          
+        }
+        
+        ##Save output
+        saveRDS(mymetric, paste0(dirRdsBRAN, "/", paste0("Data_BRAN_", inputfile %>% str_split("/") %>% unlist() %>% tail(1) %>% str_remove(".nc"),".rds")))
+        
+        # rm(myl)
+        gc()
+        Sys.sleep(2)
+        
+        # Close the NetCDF file when done
+        nc_close(nc)
+      }, error = function(e) {
+        # If an error occurs, print a message and proceed to the next iteration
+        message("Error opening file: ", inputfile)
+        message("Skipping to the next file...")
+      })
       
-      ##Save output
-      saveRDS(mymetric, paste0(dirRdsBRAN, "/", paste0("Data_BRAN_", inputfile %>% str_split("/") %>% unlist() %>% tail(1) %>% str_remove(".nc"),".rds")))
       
-      # rm(myl)
-      gc()
-      Sys.sleep(2)
       
-      # Close the NetCDF file when done
-      nc_close(nc)
-    }, error = function(e) {
-      # If an error occurs, print a message and proceed to the next iteration
-      message("Error opening file: ", inputfile)
-      message("Skipping to the next file...")
-    })
+      
+    } #end of m
     
-    
-
-    
-  } #end of m
-    
+  }
+  
   #####
 }
 
