@@ -159,6 +159,103 @@ func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = r
   #####
 }
 
+
+
+#' Function takes df of yyyymm raw data and assigns vectors for DAILY, MONTHLY, YEARLY for chosen metrics
+#' @list_df_name list df (raw file) and name (yyyydd) for saving
+#' @required.packages vector of packages used in R
+#' @input_filePath file path to netcdf files
+#' @output_filePath file path for temporary outputs
+#' 
+#' 
+#' 
+#' 
+#' @returns NULL writes out files on the fly into output_filePath
+
+func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = req_packages
+                                             , input_filePath
+                                             , output_filePath) {
+  
+  #--> Test ####
+  # tmp_df <- cdfl[[10]][[1]]
+  # tmp_name <- cdfl[[10]][[2]]
+  # required.packages <- req_packages
+  # input_filePath <- dirRdsCMIP6#"03_netCDFrds_CMIP6"
+  # output_filePath <- dirRdsCMIP6_output#"netCDFrds_CMIP6_output"
+  #####
+  
+  #--> Install packages ####
+  sapply(req_packages,require,character.only = TRUE, quietly=TRUE)
+  
+  #--> isolate objects ####
+  tmp_df <- list_df_name[[1]]
+  tmp_name <- list_df_name[[2]]
+  
+  #--> read in netcdf (3: hs, uwnd and vwnd) #####
+  tmp_ncdf <- readRDS(dir(input_filePath, full.names=TRUE)[dir(input_filePath) %>% str_detect(tmp_name)])
+  
+  #                         lon x lat x time
+  # hmap_matrix(tmp_ncdf[[1]][6,,1], rotateCCW=FALSE, title="Test")
+  
+  #--> Extract & Assign from netcdf layer based on indices ####
+  ## Function
+  # extract_values <- function(input_matrix, index_long, index_lat, index_time) {
+  #   indices <- cbind(index_long, index_lat, index_time)
+  #   values <- input_matrix[indices]
+  #   return(values)
+  # }
+  
+  ##Function now includes NA fix (BROOME ETC)
+  extract_values <- function(input_matrix, index_long, index_lat, index_time) {
+    values <- numeric(length(index_long))  # Initialize vector to store values
+    
+    for (i in 1:length(index_long)) {
+      long <- index_long[i]
+      lat <- index_lat[i]
+      time <- index_time[i]
+      
+      # Check if the value at the current index is NA
+      if (is.na(input_matrix[long, lat, time])) {
+        # Extract the 3x3 grid of values centered around the NA value
+        grid_values <- input_matrix[max(1, long - 1):min(nrow(input_matrix), long + 1),
+                                    max(1, lat - 1):min(ncol(input_matrix), lat + 1),
+                                    time]
+        
+        # Calculate the average of non-NA grid values
+        avg_value <- mean(grid_values, na.rm = TRUE)
+        
+        # Replace NA value with the average
+        values[i] <- avg_value
+      } else {
+        # If the value is not NA, simply assign it to the result
+        values[i] <- input_matrix[long, lat, time]
+      }
+    }
+    
+    return(values)
+  }
+  
+  
+  ## Extract & Assign values
+  tmp_df <- cbind(tmp_df
+                  , hs = extract_values(tmp_ncdf[[1]], tmp_df$index_long, tmp_df$index_lat, tmp_df$index_time)
+                  , uwnd = extract_values(tmp_ncdf[[2]], tmp_df$index_long, tmp_df$index_lat, tmp_df$index_time)
+                  , vwnd = extract_values(tmp_ncdf[[3]], tmp_df$index_long, tmp_df$index_lat, tmp_df$index_time)
+  )
+  
+  
+  #--> Save output ####
+  saveRDS(tmp_df, paste0(output_filePath, "/",tmp_name,"_netcdfCMIP6withRaw.rds") )
+  
+  gc()
+  
+  #--> Return ####
+  return()
+  #####
+}
+
+
+
 ###############################################################
 ###############################################################
 ###############################################################

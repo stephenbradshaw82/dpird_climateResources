@@ -3,13 +3,16 @@
 #' Contact: stephen.bradshaw@dpird.wa.gov.au
 #'          stephen.bradshaw@utas.edu.au
 #'          https://www.linkedin.com/in/stephenbradshaw82/
-#' Date: 27 May 2024
-#' Title: CMIP6 climate data
+#' Date: 04 Jun 2024
+#' Title: BRAN2020 data
 #' Details:
 #'     - Legacy files: 
-#'     - (A) CMIP6 projections for wind-wave data read by lng, lat, depth and days --> list of 12 months, each saved by year
-#'     - (B) Assign each row in data a long, lat and time index from netcdf files
-#'     - (C) Extract all hs, uwnd and vwnd values
+#'     - (A) BRAN2020 provides features for temporal scales of daily, monthly and annual records
+#'     - (B) The data is sourced by lng, lat, depth (and quantity of Days)
+#'     - (C) Some metrics do not have depth (such as mixing layer, as it is a single measurment)
+#'     - (D) Dimensions are: 201 x 251 x 51 (lon x lat x depth) for annual files ["Data_BRAN_ocean_temp_ann_2020.rds"]
+#'           Dimensions are: 201 x 251 x 51 (lon x lat x depth) for monthly files ["Data_BRAN_ocean_temp_mth_2020_06.rds"]
+#'           Dimensions are: 201 x 251 x 51 x 30 (lon x lat x depth x QtyDays) for daily files ["Data_BRAN_ocean_temp_2020_06.rds"]
 #'     - Code Here:
 #'     - (D) Generated data with time, date and lat, lon
 #'     - (E) There is a requirement to assign the .rds (netcdf) file indices to raw data to enable extraction of features
@@ -76,12 +79,13 @@ source(paste0(dirParent, "/00_src/functions.R"))
 
 #--> [USER IMPUT] Set Other Directories ####
 dirScripts  <- paste0(dirParent, "01_scripts")
-# dirRdsCMIP6 <- "M:/Fisheries Research/ASA_ClimateData/03_netCDFrds_CMIP6"
-dirRdsCMIP6 <- "03_netCDFrds_CMIP6"
-dirRdsCMIP6_output <- "netCDFrds_CMIP6_output"
+# dirRdsBRAN  <- "M:/Fisheries Research/ASA_ClimateData/02_netCDFrds_BRAN"
+dirRdsBRAN  <- "02_netCDFrds_BRAN"
+dirRdsBRAN_output <- "netCDFrds_BRAN_output"
 
 ##Above directories will get created in current working directory
-func_checkCreateDirectory(dirRdsCMIP6_output)
+# func_checkCreateDirectory(dirRdsBRAN)
+func_checkCreateDirectory(dirRdsBRAN_output)
 setwd(dirParent)
 
 #--> Misc Options ####
@@ -107,9 +111,19 @@ lat.south <- -37
 #'  - Assume 5 sites (hard coded lat long based on extents observed from plotted heatmap)
 #'  - Assign random date-times (based on from-to) thresholds 
 
-##read source file and plot
-tmp <- readRDS(paste0(dirRdsCMIP6,"/", dir(dirRdsCMIP6)[1]))
-tmp[[1]][,,1] %>% hmap_matrix()
+##Observe what the data looks like
+# tmp <- readRDS(paste0(dirRdsBRAN,"/", dir(dirRdsBRAN)[1]))
+tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_ann_2020.rds")) 
+tmp[,,1] %>% hmap_matrix()
+
+tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_mth_2020_06.rds"))
+tmp[,,1] %>% hmap_matrix()
+
+tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_2020_06.rds")) 
+tmp[,,1,25] %>% hmap_matrix()
+
+rm(tmp)
+
 
 ## [HERE] Create some generated data
 sample_lat <- c(-33.05, -34.81, -24.79, -19.87, -14.45)
@@ -151,6 +165,23 @@ rm(df_list, sample_datetimes_for_site )
 #####
 
 
+###################################
+
+# tmp <- readRDS(paste0(dirRdsBRAN,"/", dir(dirRdsBRAN)[1]))
+tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_ann_2020.rds")) 
+tmp[,,1] %>% hmap_matrix()
+
+tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_mth_2020_06.rds"))
+tmp[,,1] %>% hmap_matrix()
+
+tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_2020_06.rds")) 
+tmp[,,1,25] %>% hmap_matrix()
+
+rm(tmp)
+
+###################################
+
+
 #################################################################
 ################### (B) PREP // ASSIGNMENT ######################
 #################################################################
@@ -159,18 +190,14 @@ rm(df_list, sample_datetimes_for_site )
 
 #--> Clean / Prep Data --> TIME ####
 #' Wrangled:
-#'  - Separate dates
-#'  - Define clock hour
-#'  - Define clock hour + 1 (as 0 index not suitable for .rds files)
-#'  - Obtain time index based on 3h bins for wind, wave datasets
+#'  - Separate dates (year, month, day)
 
 df <- df %>% mutate(
   year = lubridate::year(DateTime)
   , month = lubridate::month(DateTime)
-  , day_calendar = lubridate::day(DateTime)
-  , clock_hour_1 = DateTime %>% format("%H") %>% as.numeric() %>% "+"(1)
-  , index_time = get_netcdf_time3h_index(year, month, day_calendar, clock_hour_1)
+  , day = lubridate::day(DateTime)
 )
+
 
 ##Obtain grouping variable (for parallel processing)
 df$yearMonth <- paste0(df$year, sprintf("%02d", df$month))
@@ -181,13 +208,13 @@ df$yearMonth <- paste0(df$year, sprintf("%02d", df$month))
 #'  - Round LL to nearest 0.5
 #'  - Create sequence based on extents of parent data
 #'  - Assign sequence
-df <- df %>% mutate( Lat_rd = Latitude %>% round_any(0.5)
-                     , Long_rd = Longitude %>% round_any(0.5)
+df <- df %>% mutate( Lat_rd = Latitude %>% round_any(0.05)
+                     , Long_rd = Longitude %>% round_any(0.05)
 )
 
 ## Create sequence bins as per netCDF
-lat_seq <- seq(from = lat.south, to = lat.north, by = 0.5)
-long_seq <- seq(from = lng.west, to = lng.east, by = 0.5)
+lat_seq <- seq(from = lat.south, to = lat.north, by = 0.05)
+long_seq <- seq(from = lng.west, to = lng.east, by = 0.05)
 
 ## Bin the latitude and longitude values
 df$index_lat <- as.integer(cut(df$Lat_rd, breaks = lat_seq, labels = FALSE))
@@ -195,7 +222,7 @@ df$index_long <- as.integer(cut(df$Long_rd, breaks = long_seq, labels = FALSE))
 
 
 #--> Remove unwanted columns ####
-df <- df %>% dplyr::select(-c(Lat_rd, Long_rd, year, month, day_calendar, clock_hour_1))
+df <- df %>% dplyr::select(-c(Lat_rd, Long_rd))
 
 #####
 
@@ -227,7 +254,7 @@ for (n in 1:length(dfl)){
 #################################################################
 
 #--> parallelise reading of netcdf files to assign hs, uwnd & vwnd ####
-if ("require" == "runAddCMIP6toRaw"){
+if ("require" == "runAddBRANtoRaw"){
 
   ## Define the number of cores to use
   num_cores <- max(detectCores()-4, 3)
@@ -239,9 +266,15 @@ if ("require" == "runAddCMIP6toRaw"){
   
   ## Run the function in parallel using foreach
   result_list <- foreach(df = cdfl, .combine = "c") %dopar% {
-    func_assignNetCDF_CMIP6_parallel(df, required.packages = req_packages
-                               , input_filePath = dirRdsCMIP6
-                               , output_filePath = paste0(dirRdsCMIP6_output, "/"))
+    func_assignNetCDF_BRAN_parallel(df, required.packages = req_packages
+                               , input_filePath = dirRdsBRAN
+                               , output_filePath = paste0(dirRdsBRAN_output, "/")
+                               , features = c("temp_")
+                               # , features = c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
+                               , addYearly = TRUE
+                               , addMonthly = TRUE
+                               , addDaily = TRUE
+                               , atDepth = Inf)
   }
   
   # Stop the parallel backend

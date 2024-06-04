@@ -294,14 +294,14 @@ if ("require" == "BRANdata"){
   
 
   #### Establish chores for downloading data ####
-  #--> Set base of file names to download ####
+  #--> [USER] Set base of file names to download ####
   input_trunk <- "https://dapds00.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/"
   input_tempscale <- c("daily", "month", "annual")
   
   ##Note the ocean branch and subsequent stems are listed here. If ice and other features are required either modify the code (or ask)
   input_branch <- "/ocean_"
   # input_stem <- c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
-  input_stem <- c("temp_")
+  input_stem <- c("temp_","eta_t_")
   
   ## Initialize an empty data frame to store permutations
   chores <- data.frame(treeNoLeaves = character(), stringsAsFactors = FALSE)
