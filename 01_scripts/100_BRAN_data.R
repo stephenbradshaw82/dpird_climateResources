@@ -205,16 +205,16 @@ df$yearMonth <- paste0(df$year, sprintf("%02d", df$month))
 
 #--> Clean / Prep Data --> LL ####
 #' Wrangled:
-#'  - Round LL to nearest 0.5
+#'  - Round LL to nearest 0.1
 #'  - Create sequence based on extents of parent data
 #'  - Assign sequence
-df <- df %>% mutate( Lat_rd = Latitude %>% round_any(0.05)
-                     , Long_rd = Longitude %>% round_any(0.05)
+df <- df %>% mutate( Lat_rd = Latitude %>% round_any(0.1)
+                     , Long_rd = Longitude %>% round_any(0.1)
 )
 
 ## Create sequence bins as per netCDF
-lat_seq <- seq(from = lat.south, to = lat.north, by = 0.05)
-long_seq <- seq(from = lng.west, to = lng.east, by = 0.05)
+lat_seq <- seq(from = lat.south, to = lat.north, by = 0.1)
+long_seq <- seq(from = lng.west, to = lng.east, by = 0.1)
 
 ## Bin the latitude and longitude values
 df$index_lat <- as.integer(cut(df$Lat_rd, breaks = lat_seq, labels = FALSE))
@@ -236,7 +236,12 @@ df$yearMonth %>% table()
 
 
 ## Split the data frame into a list based on 'year_month'
-dfl <- split(df, df$yearMonth)
+
+rownames(df) <- c()
+df$id <- rownames(df)
+
+# dfl <- split(df, df$yearMonth)
+dfl <- split(df, df$id)
 
 #--> Create list for // ==> cdfl ####
 cdfl <- list()
@@ -269,7 +274,7 @@ if ("require" == "runAddBRANtoRaw"){
     func_assignNetCDF_BRAN_parallel(df, required.packages = req_packages
                                , input_filePath = dirRdsBRAN
                                , output_filePath = paste0(dirRdsBRAN_output, "/")
-                               , features = c("temp_")
+                               , features = c("temp_", "eta")
                                # , features = c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
                                , addYearly = TRUE
                                , addMonthly = TRUE
@@ -286,7 +291,7 @@ if ("require" == "runAddBRANtoRaw"){
 
 #--> Write combined data-frame file ####
 ## Get the list of all .rds files in the directory
-file_paths <- dir(dirRdsCMIP6_output, full.names = TRUE, pattern = "\\.rds$")
+file_paths <- dir(dirRdsBRAN_output, full.names = TRUE, pattern = "\\.rds$")
 
 ## Read each .rds file and combine them into a single dataframe
 combined_df <- bind_rows(lapply(file_paths, readRDS))
@@ -295,7 +300,7 @@ combined_df <- bind_rows(lapply(file_paths, readRDS))
 print(combined_df)
 
 ## Save and optional delete of files
-saveRDS(combined_df, paste0(dirRdsCMIP6_output, "/", Sys.Date() %>% str_remove_all("-"), "_CMIP6_combinedTest.rds"))
+saveRDS(combined_df, paste0(dirRdsBRAN_output, "/", Sys.Date() %>% str_remove_all("-"), "_BRAN_combinedTest.rds"))
 
 if ("deleteIndivFile" == TRUE){
   unlink(file_paths)

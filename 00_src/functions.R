@@ -166,10 +166,11 @@ func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = r
 #' @required.packages vector of packages used in R
 #' @input_filePath file path to netcdf files
 #' @output_filePath file path for temporary outputs
-#' 
-#' 
-#' 
-#' 
+#' @features vector of strings, example: c("temp_", "eta_t_")
+#' @addYearly boolean TRUE | FALSE indicating whether to assign features to data
+#' @addMonthly boolean TRUE | FALSE indicating whether to assign features to data
+#' @addDaily boolean TRUE | FALSE indicating whether to assign features to data
+#' @atDepth Depth of desired feature. Inf == SBT, 0 == SST
 #' @returns NULL writes out files on the fly into output_filePath
 
 func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = req_packages
@@ -177,11 +178,16 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
                                              , output_filePath) {
   
   #--> Test ####
-  # tmp_df <- cdfl[[10]][[1]]
-  # tmp_name <- cdfl[[10]][[2]]
-  # required.packages <- req_packages
-  # input_filePath <- dirRdsCMIP6#"03_netCDFrds_CMIP6"
-  # output_filePath <- dirRdsCMIP6_output#"netCDFrds_CMIP6_output"
+  tmp_df <- cdfl[[10]][[1]]
+  tmp_name <- cdfl[[10]][[2]]
+  required.packages <- req_packages
+  input_filePath <- dirRdsBRAN#"03_netCDFrds_BRAN"
+  output_filePath <- dirRdsBRAN_output#"netCDFrds_BRAN_output"
+  features = c("temp_", "eta_t")
+  addYearly = TRUE
+  addMonthly = TRUE
+  addDaily = TRUE
+  atDepth = "SBT"
   #####
   
   #--> Install packages ####
@@ -191,6 +197,120 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   tmp_df <- list_df_name[[1]]
   tmp_name <- list_df_name[[2]]
   
+
+  #--> Identify netcdf(rds) files param
+  
+  
+  #' Need to detect files based on yyyymm AND features
+  
+  ##Is this going to crash if hitting the same rds at the same time??
+  
+  yearMonth <- tmp_df$yearMonth
+  pattern_year <- paste0(substr(yearMonth, 1, 4))
+  pattern_month <- paste0("_", substr(yearMonth, 5, 6))
+  
+  
+  for (n in features){
+    
+    n <- "temp_" ##with depth
+    n <- "eta_" ##single level
+    
+    #--> Annual ####
+    if (addYearly){
+      
+      ##Get new column name
+      newColName <- paste0(n, "ann")
+      
+      ##Find feature file
+      tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
+                                                         ( str_detect(dir(input_filePath), pattern_year) ) &
+                                                         ( str_detect(dir(input_filePath), "_ann"))
+                                                       ]
+      ##Open feature file
+      tmp_ncdf <- readRDS(tmp_file)
+      
+      tmp_ncdf %>% dim()
+      # 201 251  51 temp
+      
+      ##row x column when on side --> Lng x Lat
+      # tmp_ncdf[,,1] %>% hmap_matrix(rotateCCW=FALSE)
+      
+      
+      # (130-110)/201 #--> 0.1
+      
+      
+      # lng.west <- 110
+      # lng.east <- 130
+      # lat.north <- -12
+      # lat.south <- -37
+      
+      ##Some features do not have depth
+      if(length(tmp_ncdf)==2){
+        # return actual value
+        
+         tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat]
+        
+       
+        
+        
+        ##row x column when on side --> Lng x Lat
+        tmp_ncdf[1, 1]
+        tmp_ncdf[1,150]
+        tmp_ncdf[150,150]
+        tmp_ncdf[200, 250]
+        
+      } else {
+        # value based on atDepth
+        
+        ##if atDepth == "SBT"
+        
+        # else if (atDepth == "SST")
+        
+        
+        
+        
+      }
+      dim(tmp_ncdf)
+      
+      tmp_ncdf[,,51]
+      
+
+      
+    }
+    
+    
+
+    
+    #--> Monthly ####
+    tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
+                                                       ( str_detect(dir(input_filePath), paste0(pattern_year, pattern_month)) ) &
+                                                       ( str_detect(dir(input_filePath), "_mth"))
+                                                     ]
+    tmp_ncdf <- readRDS(tmp_file)
+    
+    
+    
+    
+    
+    #--> Daily ####
+    tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath), paste0(n, pattern_year, pattern_month)) )]
+    tmp_ncdf <- readRDS(tmp_file)
+
+    
+  }
+  
+
+  
+  
+  
+  
+    
+  
+  ################################
+  ################################
+  ################################
+  
+
   #--> read in netcdf (3: hs, uwnd and vwnd) #####
   tmp_ncdf <- readRDS(dir(input_filePath, full.names=TRUE)[dir(input_filePath) %>% str_detect(tmp_name)])
   
@@ -245,7 +365,7 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   
   
   #--> Save output ####
-  saveRDS(tmp_df, paste0(output_filePath, "/",tmp_name,"_netcdfCMIP6withRaw.rds") )
+  saveRDS(tmp_df, paste0(output_filePath, "/",tmp_name,"_netcdfBRANwithRaw.rds") )
   
   gc()
   
