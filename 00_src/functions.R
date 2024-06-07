@@ -182,18 +182,18 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
                                             , addDaily
                                             , atDepth) {
   
-  #--> Test ####
-  tmp_df <- cdfl[[10]][[1]]
-  tmp_name <- cdfl[[10]][[2]]
-  required.packages <- req_packages
-  input_filePath <- dirRdsBRAN#"03_netCDFrds_BRAN"
-  output_filePath <- dirRdsBRAN_output#"netCDFrds_BRAN_output"
-  features = c("temp_", "eta_t")
-  addYearly = TRUE
-  addMonthly = FALSE
-  addDaily = FALSE
-  atDepth = "SBT"
-  #####
+  # #--> Test ####
+  # tmp_df <- cdfl[[10]][[1]]
+  # tmp_name <- cdfl[[10]][[2]]
+  # required.packages <- req_packages
+  # input_filePath <- dirRdsBRAN#"03_netCDFrds_BRAN"
+  # output_filePath <- dirRdsBRAN_output#"netCDFrds_BRAN_output"
+  # features = c("temp_", "eta_t_")
+  # addYearly = TRUE
+  # addMonthly = FALSE
+  # addDaily = FALSE
+  # atDepth = "SBT"
+  # #####
   
   #--> Install packages ####
   sapply(req_packages,require,character.only = TRUE, quietly=TRUE)
@@ -213,8 +213,8 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   
   for (n in features){
     # n <- "temp_" ##with depth
-    # n <- "eta_" ##single level
-    
+    # n <- "eta_t_" ##single level
+
     #--> Annual ####
     if (addYearly){
       
@@ -236,7 +236,7 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       # tmp_ncdf[200, 250]
       
       ##if feature has no depth
-      if(length(tmp_ncdf)==2){
+      if(length(dim(tmp_ncdf))==2){
 
         tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat]
 

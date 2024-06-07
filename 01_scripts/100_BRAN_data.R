@@ -274,12 +274,12 @@ if ("require" == "runAddBRANtoRaw"){
     func_assignNetCDF_BRAN_parallel(df, required.packages = req_packages
                                , input_filePath = dirRdsBRAN
                                , output_filePath = paste0(dirRdsBRAN_output, "/")
-                               , features = c("temp_", "eta")
+                               , features = c("temp_", "eta_t_")
                                # , features = c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
                                , addYearly = TRUE
                                , addMonthly = FALSE
                                , addDaily = FALSE
-                               , atDepth = Inf)
+                               , atDepth = "SST")
   }
   
   # Stop the parallel backend
@@ -298,6 +298,8 @@ combined_df <- bind_rows(lapply(file_paths, readRDS))
 
 ## Print the resulting dataframe
 print(combined_df)
+
+combined_df <- combined_df %>% arrange(as.numeric(id))
 
 ## Save and optional delete of files
 saveRDS(combined_df, paste0(dirRdsBRAN_output, "/", Sys.Date() %>% str_remove_all("-"), "_BRAN_combinedTest.rds"))
