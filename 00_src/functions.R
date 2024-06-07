@@ -174,8 +174,13 @@ func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = r
 #' @returns NULL writes out files on the fly into output_filePath
 
 func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = req_packages
-                                             , input_filePath
-                                             , output_filePath) {
+                                            , input_filePath
+                                            , output_filePath
+                                            , features
+                                            , addYearly
+                                            , addMonthly
+                                            , addDaily
+                                            , atDepth) {
   
   #--> Test ####
   tmp_df <- cdfl[[10]][[1]]
@@ -185,8 +190,8 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   output_filePath <- dirRdsBRAN_output#"netCDFrds_BRAN_output"
   features = c("temp_", "eta_t")
   addYearly = TRUE
-  addMonthly = TRUE
-  addDaily = TRUE
+  addMonthly = FALSE
+  addDaily = FALSE
   atDepth = "SBT"
   #####
   
@@ -197,13 +202,9 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   tmp_df <- list_df_name[[1]]
   tmp_name <- list_df_name[[2]]
   
-
-  #--> Identify netcdf(rds) files param
-  
-  
+  #--> Identify netcdf(rds) files param ####
   #' Need to detect files based on yyyymm AND features
-  
-  ##Is this going to crash if hitting the same rds at the same time??
+  #' Is this going to crash if hitting the same rds at the same time??
   
   yearMonth <- tmp_df$yearMonth
   pattern_year <- paste0(substr(yearMonth, 1, 4))
@@ -211,9 +212,8 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   
   
   for (n in features){
-    
-    n <- "temp_" ##with depth
-    n <- "eta_" ##single level
+    # n <- "temp_" ##with depth
+    # n <- "eta_" ##single level
     
     #--> Annual ####
     if (addYearly){
@@ -229,141 +229,60 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       ##Open feature file
       tmp_ncdf <- readRDS(tmp_file)
       
-      tmp_ncdf %>% dim()
-      # 201 251  51 temp
+      # ##row x column when on side --> Lng x Lat
+      # tmp_ncdf[1, 1]
+      # tmp_ncdf[1,150]
+      # tmp_ncdf[150,150]
+      # tmp_ncdf[200, 250]
       
-      ##row x column when on side --> Lng x Lat
-      # tmp_ncdf[,,1] %>% hmap_matrix(rotateCCW=FALSE)
-      
-      
-      # (130-110)/201 #--> 0.1
-      
-      
-      # lng.west <- 110
-      # lng.east <- 130
-      # lat.north <- -12
-      # lat.south <- -37
-      
-      ##Some features do not have depth
+      ##if feature has no depth
       if(length(tmp_ncdf)==2){
-        # return actual value
-        
-         tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat]
-        
-       
-        
-        
-        ##row x column when on side --> Lng x Lat
-        tmp_ncdf[1, 1]
-        tmp_ncdf[1,150]
-        tmp_ncdf[150,150]
-        tmp_ncdf[200, 250]
-        
+
+        tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat]
+
+      ##else Consider depth  
       } else {
-        # value based on atDepth
         
-        ##if atDepth == "SBT"
-        
-        # else if (atDepth == "SST")
-        
-        
-        
-        
+        if (atDepth == "SST"){
+          
+          tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,1]
+          
+        } else if (atDepth == "SBT"){
+          
+          tmp_df[[newColName]] <- ifelse(all(is.na(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,]))
+                                         , yes=NA
+                                         , no=tail(na.omit(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,]), 1))
+
+        } else {
+          
+          tmp_df[[newColName]] <- NA
+          
+        }
+
       }
-      dim(tmp_ncdf)
-      
-      tmp_ncdf[,,51]
-      
 
-      
-    }
-    
-    
-
+    } #end addYearly
     
     #--> Monthly ####
-    tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
-                                                       ( str_detect(dir(input_filePath), paste0(pattern_year, pattern_month)) ) &
-                                                       ( str_detect(dir(input_filePath), "_mth"))
-                                                     ]
-    tmp_ncdf <- readRDS(tmp_file)
-    
-    
-    
-    
+    if (addMonthly){
+      tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
+                                                         ( str_detect(dir(input_filePath), paste0(pattern_year, pattern_month)) ) &
+                                                         ( str_detect(dir(input_filePath), "_mth"))
+      ]
+      tmp_ncdf <- readRDS(tmp_file)
+    }#end addMonthly
+
     
     #--> Daily ####
-    tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath), paste0(n, pattern_year, pattern_month)) )]
-    tmp_ncdf <- readRDS(tmp_file)
-
+    if (addDaily){
+      tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath), paste0(n, pattern_year, pattern_month)) )]
+      tmp_ncdf <- readRDS(tmp_file)
     
+    }#end addDaily
+    #####
   }
   
 
-  
-  
-  
-  
-    
-  
-  ################################
-  ################################
-  ################################
-  
-
-  #--> read in netcdf (3: hs, uwnd and vwnd) #####
-  tmp_ncdf <- readRDS(dir(input_filePath, full.names=TRUE)[dir(input_filePath) %>% str_detect(tmp_name)])
-  
-  #                         lon x lat x time
-  # hmap_matrix(tmp_ncdf[[1]][6,,1], rotateCCW=FALSE, title="Test")
-  
-  #--> Extract & Assign from netcdf layer based on indices ####
-  ## Function
-  # extract_values <- function(input_matrix, index_long, index_lat, index_time) {
-  #   indices <- cbind(index_long, index_lat, index_time)
-  #   values <- input_matrix[indices]
-  #   return(values)
-  # }
-  
-  ##Function now includes NA fix (BROOME ETC)
-  extract_values <- function(input_matrix, index_long, index_lat, index_time) {
-    values <- numeric(length(index_long))  # Initialize vector to store values
-    
-    for (i in 1:length(index_long)) {
-      long <- index_long[i]
-      lat <- index_lat[i]
-      time <- index_time[i]
-      
-      # Check if the value at the current index is NA
-      if (is.na(input_matrix[long, lat, time])) {
-        # Extract the 3x3 grid of values centered around the NA value
-        grid_values <- input_matrix[max(1, long - 1):min(nrow(input_matrix), long + 1),
-                                    max(1, lat - 1):min(ncol(input_matrix), lat + 1),
-                                    time]
-        
-        # Calculate the average of non-NA grid values
-        avg_value <- mean(grid_values, na.rm = TRUE)
-        
-        # Replace NA value with the average
-        values[i] <- avg_value
-      } else {
-        # If the value is not NA, simply assign it to the result
-        values[i] <- input_matrix[long, lat, time]
-      }
-    }
-    
-    return(values)
-  }
-  
-  
-  ## Extract & Assign values
-  tmp_df <- cbind(tmp_df
-                  , hs = extract_values(tmp_ncdf[[1]], tmp_df$index_long, tmp_df$index_lat, tmp_df$index_time)
-                  , uwnd = extract_values(tmp_ncdf[[2]], tmp_df$index_long, tmp_df$index_lat, tmp_df$index_time)
-                  , vwnd = extract_values(tmp_ncdf[[3]], tmp_df$index_long, tmp_df$index_lat, tmp_df$index_time)
-  )
-  
-  
   #--> Save output ####
   saveRDS(tmp_df, paste0(output_filePath, "/",tmp_name,"_netcdfBRANwithRaw.rds") )
   

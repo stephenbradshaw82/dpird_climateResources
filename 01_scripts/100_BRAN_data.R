@@ -8,8 +8,8 @@
 #' Details:
 #'     - Legacy files: 
 #'     - (A) BRAN2020 provides features for temporal scales of daily, monthly and annual records
-#'     - (B) The data is sourced by lng, lat, depth (and quantity of Days)
-#'     - (C) Some metrics do not have depth (such as mixing layer, as it is a single measurment)
+#'     - (B) The data is sourced by lng, lat, depth (and quantity of Days) --> resolved at 0.05 --> provided at 0.1deg?
+#'     - (C) Some metrics do not have depth (such as mixing layer, as it is a single measurement) 
 #'     - (D) Dimensions are: 201 x 251 x 51 (lon x lat x depth) for annual files ["Data_BRAN_ocean_temp_ann_2020.rds"]
 #'           Dimensions are: 201 x 251 x 51 (lon x lat x depth) for monthly files ["Data_BRAN_ocean_temp_mth_2020_06.rds"]
 #'           Dimensions are: 201 x 251 x 51 x 30 (lon x lat x depth x QtyDays) for daily files ["Data_BRAN_ocean_temp_2020_06.rds"]
@@ -277,8 +277,8 @@ if ("require" == "runAddBRANtoRaw"){
                                , features = c("temp_", "eta")
                                # , features = c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
                                , addYearly = TRUE
-                               , addMonthly = TRUE
-                               , addDaily = TRUE
+                               , addMonthly = FALSE
+                               , addDaily = FALSE
                                , atDepth = Inf)
   }
   
