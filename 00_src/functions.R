@@ -1,5 +1,5 @@
 #' -------------------------------------------------------------------------
-#' Project:     netCDF functions
+#' Project:     netCDF functions & climate data for DPIRD
 #'
 #' Created by:  Stephen Bradshaw
 #' Modified:    27/05/2024 (change history must be captured in code)
@@ -76,7 +76,6 @@ get_netcdf_time3h_index <- function(year, month, day, clock_hour) {
 #' @input_filePath file path to netcdf files
 #' @output_filePath file path for temporary outputs
 #' @returns NULL writes out files on the fly into output_filePath
-
 func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = req_packages
                                        , input_filePath
                                        , output_filePath) {
@@ -160,7 +159,6 @@ func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = r
 }
 
 
-
 #' Function takes df of yyyymm raw data and assigns vectors for DAILY, MONTHLY, YEARLY for chosen metrics
 #' @list_df_name list df (raw file) and name (yyyydd) for saving
 #' @required.packages vector of packages used in R
@@ -172,7 +170,6 @@ func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = r
 #' @addDaily boolean TRUE | FALSE indicating whether to assign features to data
 #' @atDepth Depth of desired feature. Inf == SBT, 0 == SST
 #' @returns NULL writes out files on the fly into output_filePath
-
 func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = req_packages
                                             , input_filePath
                                             , output_filePath
@@ -189,9 +186,9 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   # input_filePath <- dirRdsBRAN#"03_netCDFrds_BRAN"
   # output_filePath <- dirRdsBRAN_output#"netCDFrds_BRAN_output"
   # features = c("temp_", "eta_t_")
-  # addYearly = TRUE
-  # addMonthly = TRUE
-  # addDaily = FALSE
+  # addYearly = FALSE
+  # addMonthly = FALSE
+  # addDaily = TRUE
   # atDepth = "SBT"
   # #####
   
@@ -278,13 +275,7 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       
       ##Open feature file
       tmp_ncdf <- readRDS(tmp_file)
-      
-      # ##row x column when on side --> Lng x Lat
-      # tmp_ncdf[1, 1]
-      # tmp_ncdf[1,150]
-      # tmp_ncdf[150,150]
-      # tmp_ncdf[200, 250]
-      
+
       ##if feature has no depth
       if(length(dim(tmp_ncdf))==2){
         
@@ -314,14 +305,49 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       
     }#end addMonthly
 
-    
     #--> Daily ####
     if (addDaily){
       
+      ##Get new column name
+      newColName <- paste0(n, "day")
       
-      tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath), paste0(n, pattern_year, pattern_month)) )]
+      ##Find feature file
+      tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
+                                                         ( str_detect(dir(input_filePath), pattern_year) ) &
+                                                         ( str_detect(dir(input_filePath),  paste0(pattern_month,".rds")) ) &
+                                                         ( !str_detect(dir(input_filePath), "_mth"))
+      ]
+      
+      ##Open feature file
       tmp_ncdf <- readRDS(tmp_file)
-    
+
+      
+      ##if feature has no depth (changed here as Daily has up to 4 dimensions if feature has depth)
+      if(length(dim(tmp_ncdf))==3){
+        
+        tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat, tmp_df$day]
+        
+        ##else Consider depth  
+      } else {
+        
+        if (atDepth == "SST"){
+          
+          tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat, 1, tmp_df$day]
+          
+        } else if (atDepth == "SBT"){
+          
+          tmp_df[[newColName]] <- ifelse(all(is.na(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,,tmp_df$day]))
+                                         , yes=NA
+                                         , no=tail(na.omit(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,,tmp_df$day]), 1))
+          
+        } else {
+          
+          tmp_df[[newColName]] <- NA
+          
+        }
+        
+      }
+      
     }#end addDaily
     #####
   }
@@ -342,4 +368,3 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
 ###############################################################
 ###############################################################
 ###############################################################
-

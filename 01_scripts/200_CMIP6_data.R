@@ -6,7 +6,7 @@
 #' Date: 27 May 2024
 #' Title: CMIP6 climate data
 #' Details:
-#'     - Legacy files: 
+#'     - Outline: 
 #'     - (A) CMIP6 projections for wind-wave data read by lng, lat, depth and days --> list of 12 months, each saved by year
 #'     - (B) Assign each row in data a long, lat and time index from netcdf files
 #'     - (C) Extract all hs, uwnd and vwnd values
@@ -14,7 +14,7 @@
 #'     - (D) Generated data with time, date and lat, lon
 #'     - (E) There is a requirement to assign the .rds (netcdf) file indices to raw data to enable extraction of features
 #'     - (E) Script aggregates and assigns CMIP6 features to flat data
-#'     - (F) Parallelise over yyyymm --> outputs into 04_CMIP6combinedData
+#'     - (F) Parallelise over yyyymm --> outputs into netCDFrds_CMIP6_output
 #' RESOURCES:
 #'     - https://data.csiro.au/collection/csiro:60106
 #'     
@@ -22,33 +22,17 @@
 #### LIBRARIES ####
 rm(list=ls())
 
-
 #' Packages (not in environment) -------------------------------------------
 list.of.packages <- c(
   "magrittr", "tidyr"
   , "plyr", "dplyr"
   , "ggplot2"
-  # , "gam", 
   ,"stringr", "purrr", "rebus"
-  # ,"ggpubr"
   , "foreach", "doParallel"
-  # , "geosphere"
-  # , "leaflet"
   ,"lubridate"
   , "scales", "pheatmap"
-  # , "mapview", "dbscan", "FNN", "sf", "mgcv"
-  # , "gridExtra"
-  # , "ozmaps"
-  # , "bayesplot"
-  # , "gghighlight"
-  # , "V8"
-  # , "bayestestR"
-  # , 'posterior'
-  # , "foreach", "doParallel"
+  , "foreach", "doParallel"
   , "ncdf4"
-  # , "ggmap"
-  # , "data.table"
-                      # , "grid"
 )
 
 
@@ -88,7 +72,6 @@ setwd(dirParent)
 options(stringsAsFactors = FALSE)
 options(scipen = 999)
 #####
-
 
 #################################################################
 ################### (A) EXAMPLE GENERATED DATA ##################
@@ -148,8 +131,10 @@ df_list <- lapply(seq_along(sample_lat), function(i) {
 df <- bind_rows(df_list)
 rm(df_list, sample_datetimes_for_site )
 
+#--> [USER DEFINED PARAMETERS] To run / to delete ####
+runAddCMIP6toRaw <- TRUE
+deleteIndivFile <- TRUE
 #####
-
 
 #################################################################
 ################### (B) PREP // ASSIGNMENT ######################
@@ -221,13 +206,12 @@ for (n in 1:length(dfl)){
 
 #####
 
-
 #################################################################
 ################### (C) PARALLELIZE TO RAW ######################
 #################################################################
 
 #--> parallelise reading of netcdf files to assign hs, uwnd & vwnd ####
-if ("require" == "runAddCMIP6toRaw"){
+if (runAddCMIP6toRaw == TRUE){
 
   ## Define the number of cores to use
   num_cores <- max(detectCores()-4, 3)
@@ -264,22 +248,16 @@ print(combined_df)
 ## Save and optional delete of files
 saveRDS(combined_df, paste0(dirRdsCMIP6_output, "/", Sys.Date() %>% str_remove_all("-"), "_CMIP6_combinedTest.rds"))
 
-if ("deleteIndivFile" == TRUE){
+if (deleteIndivFile == TRUE){
   unlink(file_paths)
 }
 
 
 #####
 
-
 #####################################################################
 #####################################################################
 #####################################################################
 #####################################################################
 #####################################################################
 #####################################################################
-
-
-
-
-

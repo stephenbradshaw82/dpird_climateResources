@@ -11,7 +11,7 @@
 #'     - (B) Write out files in .rds for smaller memory footprint
 #' Pending:
 #'     - Script Executable to look at directory diff and download missing files
-#'     - Addition of all metrics taken from CMIP6 (wind and signficiant wave height)
+#'     - Addition of all metrics taken from CMIP6 (wind and signficant wave height)
 #'     - Additional of all metric taken from BRAN
 #'      
 #' RESOURCES:
@@ -63,7 +63,6 @@ rm(list = setdiff(ls(), "req_packages"))
 #--> Set TZ ####
 Sys.setenv(TZ = "Australia/Perth")
 
-
 #--> Set Parent Directory ####
 tmp_openFile <- dirname(rstudioapi::getActiveDocumentContext()$path) %>% str_split("/") %>% unlist() %>% tail(1)
 dirParent <- dirname(rstudioapi::getActiveDocumentContext()$path) %>% str_remove(tmp_openFile)
@@ -79,12 +78,15 @@ dirScripts  <- paste0(dirParent, "01_scripts")
 dirRdsCMIP6 <- "03_netCDFrds_CMIP6"
 dirRdsBRAN  <- "02_netCDFrds_BRAN"
 
-
 ##Above directories will get created in current working directory
 func_checkCreateDirectory(dirRdsBRAN)
 func_checkCreateDirectory(dirRdsCMIP6)
 
 setwd(dirParent)
+
+#--> [USER IMPUT] Set download for netcdf files as rds ####
+requireCMIP6data <- FALSE
+requireBRANdata <- FALSE
 
 #--> Misc Options ####
 options(stringsAsFactors = FALSE)
@@ -93,8 +95,7 @@ options(scipen = 999)
 
 #### DPIRD Specific Data features ####
 #--> [USER INPUT] Time Range ####
-##Years
-#' Need to consider dataset
+#' Years: Need to consider dataset
 #' start.year will be adjusted in BRAN code to have a minimum value of 1993
 #' end.year will be adjusted in BRAN code to have a minimum value of 1993
 
@@ -109,12 +110,11 @@ lat.north <- -12
 lat.south <- -37
 #####
 
-
 ########################################################################
 #################### (A) EXTRACT FROM NET to RDS #######################
 ########################################################################
 
-if ("require" == "CMIP6data"){
+if (requireCMIP6data == TRUE){
   
   #### Extract 3hrly wind and significant wave height data from CMIP6 ####
   # https://nci.org.au/our-services/data-services
@@ -276,8 +276,7 @@ if ("require" == "CMIP6data"){
   #####
 }
 
-
-if ("require" == "BRANdata"){
+if (requireBRANdata == TRUE){
   
   #### Extract ocean metrics from BRAN2020 ####
   # https://research.csiro.au/bluelink/bran2020-data-released/
@@ -444,4 +443,3 @@ if ("require" == "BRANdata"){
 #####################################################################
 #####################################################################
 #####################################################################
-

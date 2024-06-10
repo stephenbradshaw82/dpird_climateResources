@@ -3,23 +3,23 @@
 #' Contact: stephen.bradshaw@dpird.wa.gov.au
 #'          stephen.bradshaw@utas.edu.au
 #'          https://www.linkedin.com/in/stephenbradshaw82/
-#' Date: 04 Jun 2024
+#' Date: 11 Jun 2024
 #' Title: BRAN2020 data
 #' Details:
-#'     - Legacy files: 
+#'     - Outline
 #'     - (A) BRAN2020 provides features for temporal scales of daily, monthly and annual records
-#'     - (B) The data is sourced by lng, lat, depth (and quantity of Days) --> resolved at 0.05 --> provided at 0.1deg?
+#'     - (B) The data is sourced by lng, lat, depth (and quantity of Days) --> resolved at 0.05 --> reconciled at 0.1 deg
 #'     - (C) Some metrics do not have depth (such as mixing layer, as it is a single measurement) 
 #'     - (D) Dimensions are: 201 x 251 x 51 (lon x lat x depth) for annual files ["Data_BRAN_ocean_temp_ann_2020.rds"]
 #'           Dimensions are: 201 x 251 x 51 (lon x lat x depth) for monthly files ["Data_BRAN_ocean_temp_mth_2020_06.rds"]
 #'           Dimensions are: 201 x 251 x 51 x 30 (lon x lat x depth x QtyDays) for daily files ["Data_BRAN_ocean_temp_2020_06.rds"]
 #'     - Code Here:
 #'     - (D) Generated data with time, date and lat, lon
-#'     - (E) There is a requirement to assign the .rds (netcdf) file indices to raw data to enable extraction of features
-#'     - (E) Script aggregates and assigns CMIP6 features to flat data
-#'     - (F) Parallelise over yyyymm --> outputs into 04_CMIP6combinedData
+#'     - (E) This version of the code assigns yearly, monthly and/or daily feature records to a given date record
+#'     - (F) There is a requirement to assign the .rds (netcdf) file indices to raw data to enable extraction of features
+#'     - (G) Parallelise over yyyymm --> outputs into netCDFrds_BRAN_output
 #' RESOURCES:
-#'     - https://data.csiro.au/collection/csiro:60106
+#'     - https://research.csiro.au/bluelink/bran2020-data-released/
 #'     
 
 #### LIBRARIES ####
@@ -31,27 +31,12 @@ list.of.packages <- c(
   "magrittr", "tidyr"
   , "plyr", "dplyr"
   , "ggplot2"
-  # , "gam", 
   ,"stringr", "purrr", "rebus"
-  # ,"ggpubr"
   , "foreach", "doParallel"
-  # , "geosphere"
-  # , "leaflet"
   ,"lubridate"
   , "scales", "pheatmap"
-  # , "mapview", "dbscan", "FNN", "sf", "mgcv"
-  # , "gridExtra"
-  # , "ozmaps"
-  # , "bayesplot"
-  # , "gghighlight"
-  # , "V8"
-  # , "bayestestR"
-  # , 'posterior'
-  # , "foreach", "doParallel"
+  , "foreach", "doParallel"
   , "ncdf4"
-  # , "ggmap"
-  # , "data.table"
-                      # , "grid"
 )
 
 
@@ -93,12 +78,26 @@ options(stringsAsFactors = FALSE)
 options(scipen = 999)
 #####
 
-
 #################################################################
 ################### (A) EXAMPLE GENERATED DATA ##################
 #################################################################
 #' Data requires Latitude / Longitude / DateTime
 #' Below generated data is created
+
+#--> [BLOCKED] Observe raster-type images ####
+# ##Observe what the data looks like
+# # tmp <- readRDS(paste0(dirRdsBRAN,"/", dir(dirRdsBRAN)[1]))
+# tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_ann_2020.rds")) 
+# tmp[,,1] %>% hmap_matrix()
+# 
+# tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_mth_2020_06.rds"))
+# tmp[,,1] %>% hmap_matrix()
+# 
+# tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_2020_06.rds")) 
+# tmp[,,1,25] %>% hmap_matrix()
+# 
+# rm(tmp)
+
 
 #--> [DEFINE EXTENTS] Encompass Western Australia (WA) ####
 lng.west <- 110
@@ -110,21 +109,6 @@ lat.south <- -37
 #' Raw data:
 #'  - Assume 5 sites (hard coded lat long based on extents observed from plotted heatmap)
 #'  - Assign random date-times (based on from-to) thresholds 
-
-##Observe what the data looks like
-# tmp <- readRDS(paste0(dirRdsBRAN,"/", dir(dirRdsBRAN)[1]))
-tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_ann_2020.rds")) 
-tmp[,,1] %>% hmap_matrix()
-
-tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_mth_2020_06.rds"))
-tmp[,,1] %>% hmap_matrix()
-
-tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_2020_06.rds")) 
-tmp[,,1,25] %>% hmap_matrix()
-
-rm(tmp)
-
-
 ## [HERE] Create some generated data
 sample_lat <- c(-33.05, -34.81, -24.79, -19.87, -14.45)
 sample_lon <- c(126.89, 114.62, 110.84, 118.37,  128.32)
@@ -162,25 +146,10 @@ df_list <- lapply(seq_along(sample_lat), function(i) {
 df <- bind_rows(df_list)
 rm(df_list, sample_datetimes_for_site )
 
+#--> [USER DEFINED PARAMETERS] To run / to delete ####
+runAddBRANtoRaw <- TRUE
+deleteIndivFile <- TRUE
 #####
-
-
-###################################
-
-# tmp <- readRDS(paste0(dirRdsBRAN,"/", dir(dirRdsBRAN)[1]))
-tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_ann_2020.rds")) 
-tmp[,,1] %>% hmap_matrix()
-
-tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_mth_2020_06.rds"))
-tmp[,,1] %>% hmap_matrix()
-
-tmp <- readRDS(paste0(dirRdsBRAN,"/", "Data_BRAN_ocean_temp_2020_06.rds")) 
-tmp[,,1,25] %>% hmap_matrix()
-
-rm(tmp)
-
-###################################
-
 
 #################################################################
 ################### (B) PREP // ASSIGNMENT ######################
@@ -230,17 +199,10 @@ df <- df %>% dplyr::select(-c(Lat_rd, Long_rd))
 #' process permits // running for yyyymm groupings
 #' Here we have limited amounts of data, but for extensive time series // is advised
 
-##Look at dataset (here gen)
-head(df)
-df$yearMonth %>% table()
-
-
 ## Split the data frame into a list based on 'year_month'
-
 rownames(df) <- c()
 df$id <- rownames(df)
 
-# dfl <- split(df, df$yearMonth)
 dfl <- split(df, df$id)
 
 #--> Create list for // ==> cdfl ####
@@ -253,16 +215,15 @@ for (n in 1:length(dfl)){
 
 #####
 
-
 #################################################################
 ################### (C) PARALLELIZE TO RAW ######################
 #################################################################
 
 #--> parallelise reading of netcdf files to assign hs, uwnd & vwnd ####
-if ("require" == "runAddBRANtoRaw"){
+if (runAddBRANtoRaw == TRUE){
 
   ## Define the number of cores to use
-  num_cores <- max(detectCores()-2, 3)
+  num_cores <- max(detectCores()-4, 3)
   
   ## Register a parallel backend
   cl <- makeCluster(num_cores)
@@ -278,11 +239,11 @@ if ("require" == "runAddBRANtoRaw"){
                                # , features = c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
                                , addYearly = TRUE
                                , addMonthly = TRUE
-                               , addDaily = FALSE
+                               , addDaily = TRUE
                                , atDepth = "SST")
   }
   
-  # Stop the parallel backend
+  ## Stop the parallel backend
   stopCluster(cl)
 
 
@@ -295,31 +256,21 @@ file_paths <- dir(dirRdsBRAN_output, full.names = TRUE, pattern = "\\.rds$")
 
 ## Read each .rds file and combine them into a single dataframe
 combined_df <- bind_rows(lapply(file_paths, readRDS))
-
-## Print the resulting dataframe
-print(combined_df)
-
 combined_df <- combined_df %>% arrange(as.numeric(id))
 
 ## Save and optional delete of files
 saveRDS(combined_df, paste0(dirRdsBRAN_output, "/", Sys.Date() %>% str_remove_all("-"), "_BRAN_combinedTest.rds"))
 
-if ("deleteIndivFile" == TRUE){
+if (deleteIndivFile == TRUE){
   unlink(file_paths)
 }
 
 
 #####
 
-
 #####################################################################
 #####################################################################
 #####################################################################
 #####################################################################
 #####################################################################
 #####################################################################
-
-
-
-
-
