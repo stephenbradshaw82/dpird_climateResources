@@ -190,7 +190,7 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   # output_filePath <- dirRdsBRAN_output#"netCDFrds_BRAN_output"
   # features = c("temp_", "eta_t_")
   # addYearly = TRUE
-  # addMonthly = FALSE
+  # addMonthly = TRUE
   # addDaily = FALSE
   # atDepth = "SBT"
   # #####
@@ -265,16 +265,60 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
     
     #--> Monthly ####
     if (addMonthly){
+      
+      ##Get new column name
+      newColName <- paste0(n, "mth")
+      
+      ##Find feature file
       tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
-                                                         ( str_detect(dir(input_filePath), paste0(pattern_year, pattern_month)) ) &
+                                                         ( str_detect(dir(input_filePath), pattern_year) ) &
+                                                         ( str_detect(dir(input_filePath),  paste0(pattern_month,".rds")) ) &
                                                          ( str_detect(dir(input_filePath), "_mth"))
       ]
+      
+      ##Open feature file
       tmp_ncdf <- readRDS(tmp_file)
+      
+      # ##row x column when on side --> Lng x Lat
+      # tmp_ncdf[1, 1]
+      # tmp_ncdf[1,150]
+      # tmp_ncdf[150,150]
+      # tmp_ncdf[200, 250]
+      
+      ##if feature has no depth
+      if(length(dim(tmp_ncdf))==2){
+        
+        tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat]
+        
+        ##else Consider depth  
+      } else {
+        
+        if (atDepth == "SST"){
+          
+          tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,1]
+          
+        } else if (atDepth == "SBT"){
+          
+          tmp_df[[newColName]] <- ifelse(all(is.na(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,]))
+                                         , yes=NA
+                                         , no=tail(na.omit(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,]), 1))
+          
+        } else {
+          
+          tmp_df[[newColName]] <- NA
+          
+        }
+        
+      }
+      
+      
     }#end addMonthly
 
     
     #--> Daily ####
     if (addDaily){
+      
+      
       tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath), paste0(n, pattern_year, pattern_month)) )]
       tmp_ncdf <- readRDS(tmp_file)
     

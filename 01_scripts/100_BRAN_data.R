@@ -262,7 +262,7 @@ for (n in 1:length(dfl)){
 if ("require" == "runAddBRANtoRaw"){
 
   ## Define the number of cores to use
-  num_cores <- max(detectCores()-4, 3)
+  num_cores <- max(detectCores()-2, 3)
   
   ## Register a parallel backend
   cl <- makeCluster(num_cores)
@@ -277,7 +277,7 @@ if ("require" == "runAddBRANtoRaw"){
                                , features = c("temp_", "eta_t_")
                                # , features = c("eta_t_", "force_", "mld_", "salt_", "temp_", "tx_trans_int_z_", "ty_trans_int_z_", "u_", "v_", "w_")
                                , addYearly = TRUE
-                               , addMonthly = FALSE
+                               , addMonthly = TRUE
                                , addDaily = FALSE
                                , atDepth = "SST")
   }
