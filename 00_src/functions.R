@@ -80,20 +80,19 @@ func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = r
                                        , input_filePath
                                        , output_filePath) {
   
-  #--> Test ####
-  # tmp_df <- cdfl[[10]][[1]]
-  # tmp_name <- cdfl[[10]][[2]]
+  # #--> Test ####
+  # list_df_name <- cdfl[[10]]
   # required.packages <- req_packages
-  # input_filePath <- dirRdsCMIP6#"03_netCDFrds_CMIP6"
+  # input_filePath = paste0(dirRdsCMIP6, "/", list_df_name[[2]] %>% str_split(DOT) %>% unlist() %>% pluck(2))
   # output_filePath <- dirRdsCMIP6_output#"netCDFrds_CMIP6_output"
-  #####
+  # #####
   
   #--> Install packages ####
   sapply(req_packages,require,character.only = TRUE, quietly=TRUE)
   
   #--> isolate objects ####
   tmp_df <- list_df_name[[1]]
-  tmp_name <- list_df_name[[2]]
+  tmp_name <- list_df_name[[2]] %>% str_split(DOT) %>% unlist() %>% pluck(1)
   
   #--> read in netcdf (3: hs, uwnd and vwnd) #####
   tmp_ncdf <- readRDS(dir(input_filePath, full.names=TRUE)[dir(input_filePath) %>% str_detect(tmp_name)])
@@ -168,7 +167,7 @@ func_assignNetCDF_CMIP6_parallel <- function(list_df_name, required.packages = r
 #' @addYearly boolean TRUE | FALSE indicating whether to assign features to data
 #' @addMonthly boolean TRUE | FALSE indicating whether to assign features to data
 #' @addDaily boolean TRUE | FALSE indicating whether to assign features to data
-#' @atDepth Depth of desired feature. Inf == SBT, 0 == SST
+#' @atDepth_str Depth of desired feature as a string. Inf == "SBT", 0m == "SST", 100m == "100"
 #' @returns NULL writes out files on the fly into output_filePath
 func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = req_packages
                                             , input_filePath
@@ -177,19 +176,18 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
                                             , addYearly
                                             , addMonthly
                                             , addDaily
-                                            , atDepth) {
+                                            , atDepth_str) {
   
   # #--> Test ####
-  # tmp_df <- cdfl[[10]][[1]]
-  # tmp_name <- cdfl[[10]][[2]]
+  # list_df_name<- cdfl[[1]]
   # required.packages <- req_packages
-  # input_filePath <- dirRdsBRAN#"03_netCDFrds_BRAN"
+  # input_filePath <- paste0(dirRdsBRAN, "/", tmp_df[[1]]$Region)#dirRdsBRAN#"02_netCDFrds_BRAN"
   # output_filePath <- dirRdsBRAN_output#"netCDFrds_BRAN_output"
   # features = c("temp_", "eta_t_")
-  # addYearly = FALSE
-  # addMonthly = FALSE
+  # addYearly = TRUE
+  # addMonthly = TRUE
   # addDaily = TRUE
-  # atDepth = "SBT"
+  # atDepth_str = "100"#"SBT"
   # #####
   
   #--> Install packages ####
@@ -199,19 +197,94 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
   tmp_df <- list_df_name[[1]]
   tmp_name <- list_df_name[[2]]
   
+  ##If appropriate spatial extent files not present, remove data
+  if (is.na(tmp_df) %>% sum() %>% ">"(0)){
+
+    tmp_df <- tmp_df %>% na.omit()
+    
+    print(paste0("DATA FOR year=", tmp_df$year[1], " & month=", tmp_df$month[1], " CONTAINS NA VALUES"))
+    print("THIS DATA HAS BEEN REMOVED")
+    print("YOU WILL NEED TO SOURCE THE APPROPRIATE NETCDF FILES FOR THIS SPATIAL EXTENT")
+  }
+  
   #--> Identify netcdf(rds) files param ####
   #' Need to detect files based on yyyymm AND features
   #' Is this going to crash if hitting the same rds at the same time??
   
-  yearMonth <- tmp_df$yearMonth
-  pattern_year <- paste0(substr(yearMonth, 1, 4))
-  pattern_month <- paste0("_", substr(yearMonth, 5, 6))
+  #--> Depending on triggering codebase (100 or 110) ####
+  if ("yearMonth" %in% c(names(tmp_df))){
+    ## 100 code base
+    yearMonth <- tmp_df$yearMonth[1]
+    pattern_year <- paste0(substr(yearMonth, 1, 4))
+    pattern_month <- paste0("_", substr(yearMonth, 5, 6))
+
+  } else {
+    
+    ## 110 code base
+    if ("month" %in% c(names(tmp_df))){
+      ## monthly data
+      pattern_year <- tmp_df$year[1]
+      pattern_month <- paste0("_", sprintf("%02d", tmp_df$month))[1]
+      
+    } else {
+      ## yearly only
+      pattern_year <- tmp_df$year[1]
+      
+    }
+  }
   
-  
+  #--> Applying ####
   for (n in features){
     # n <- "temp_" ##with depth
     # n <- "eta_t_" ##single level
 
+    func_length_to_index <- function(x) {
+      valid_lengths <- c(seq(0, 40, by=5), seq(50, 200, by=10))
+      nearest_length <- valid_lengths[which.min(abs(valid_lengths - x))]
+      which(valid_lengths == nearest_length)
+    }
+    
+    func_get_last_valid <- function(x, y, depth, z) {
+      
+      if(length(dim(tmp_ncdf)) == 3){
+        vals <- tmp_ncdf[x, y, ]
+        
+        if (!is.na(vals[func_length_to_index(as.numeric(depth))])){
+          
+          return(vals[func_length_to_index(as.numeric(depth))])
+          
+        } else if (all(is.na(vals))) {
+          
+          return(NA)
+          
+        } else {
+          
+          return(vals[max(which(!is.na(vals)))])
+          
+        }
+        
+      ### IF WE HAVE DAILY DATA WITH A 4th DIMENSION  
+      } else {
+        vals <- tmp_ncdf[x, y, ,z]
+        
+        if (!is.na(vals[func_length_to_index(as.numeric(depth))])){
+          
+          return(vals[func_length_to_index(as.numeric(depth))])
+          
+        } else if (all(is.na(vals))) {
+          
+          return(NA)
+          
+        } else {
+          
+          return(vals[max(which(!is.na(vals)))])
+          
+        }
+
+      }
+ 
+    }
+    
     #--> Annual ####
     if (addYearly){
       
@@ -226,12 +299,6 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       ##Open feature file
       tmp_ncdf <- readRDS(tmp_file)
       
-      # ##row x column when on side --> Lng x Lat
-      # tmp_ncdf[1, 1]
-      # tmp_ncdf[1,150]
-      # tmp_ncdf[150,150]
-      # tmp_ncdf[200, 250]
-      
       ##if feature has no depth
       if(length(dim(tmp_ncdf))==2){
 
@@ -240,11 +307,11 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       ##else Consider depth  
       } else {
         
-        if (atDepth == "SST"){
+        if (atDepth_str == "SST"){
           
           tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,1]
           
-        } else if (atDepth == "SBT"){
+        } else if (atDepth_str == "SBT"){
           
           tmp_df[[newColName]] <- ifelse(all(is.na(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,]))
                                          , yes=NA
@@ -252,8 +319,12 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
 
         } else {
           
-          tmp_df[[newColName]] <- NA
-          
+          result <- mapply(func_get_last_valid, 
+                           x = tmp_df$index_long, 
+                           y = tmp_df$index_lat, 
+                           MoreArgs = list(depth = atDepth_str))
+          tmp_df[[newColName]] <- result
+
         }
 
       }
@@ -267,12 +338,12 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       newColName <- paste0(n, "mth")
       
       ##Find feature file
-      tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
-                                                         ( str_detect(dir(input_filePath), pattern_year) ) &
-                                                         ( str_detect(dir(input_filePath),  paste0(pattern_month,".rds")) ) &
+      tmp_file <- dir(input_filePath, full.names=TRUE)[  ( str_detect(dir(input_filePath),n) ) &
+                                                         ( str_detect(dir(input_filePath), as.character(pattern_year)) ) &
+                                                         ( str_detect(dir(input_filePath),  paste0(pattern_month,"_N")) ) &
                                                          ( str_detect(dir(input_filePath), "_mth"))
-      ]
-      
+                                                       ]
+
       ##Open feature file
       tmp_ncdf <- readRDS(tmp_file)
 
@@ -284,28 +355,44 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
         ##else Consider depth  
       } else {
         
-        if (atDepth == "SST"){
+        if (atDepth_str == "SST"){
           
-          tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,1]
+          result <- rep(NA, length(tmp_df$index_long))
+          result <- tmp_ncdf[cbind(tmp_df$index_long, tmp_df$index_lat, rep(1, length(tmp_df$index_long)))]
+          tmp_df[[newColName]] <- result
+          rm(result)
           
-        } else if (atDepth == "SBT"){
+        } else if (atDepth_str == "SBT"){
           
-          tmp_df[[newColName]] <- ifelse(all(is.na(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,]))
-                                         , yes=NA
-                                         , no=tail(na.omit(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,]), 1))
+          idx_matrix <- cbind(tmp_df$index_long, tmp_df$index_lat)
+          result <- apply(idx_matrix, 1, function(idx) {
+            vals <- tmp_ncdf[idx[1], idx[2], ]
+            if(all(is.na(vals))) {
+              return(NA)
+            } else {
+              return(vals[max(which(!is.na(vals)))])
+            }
+          })
+          tmp_df[[newColName]] <- result
+          rm(result)
           
         } else {
-          
-          tmp_df[[newColName]] <- NA
+        
+          result <- mapply(func_get_last_valid, 
+                           x = tmp_df$index_long, 
+                           y = tmp_df$index_lat, 
+                           MoreArgs = list(depth = atDepth_str))
+          tmp_df[[newColName]] <- result
+          rm(result)
           
         }
         
       }
       
-      
     }#end addMonthly
-
+    
     #--> Daily ####
+    #' Currently memory inefficient
     if (addDaily){
       
       ##Get new column name
@@ -314,14 +401,13 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
       ##Find feature file
       tmp_file <- dir(input_filePath, full.names=TRUE)[( str_detect(dir(input_filePath),n) ) &
                                                          ( str_detect(dir(input_filePath), pattern_year) ) &
-                                                         ( str_detect(dir(input_filePath),  paste0(pattern_month,".rds")) ) &
+                                                         ( str_detect(dir(input_filePath),  paste0(pattern_month,"_N")) ) &
                                                          ( !str_detect(dir(input_filePath), "_mth"))
       ]
       
       ##Open feature file
       tmp_ncdf <- readRDS(tmp_file)
 
-      
       ##if feature has no depth (changed here as Daily has up to 4 dimensions if feature has depth)
       if(length(dim(tmp_ncdf))==3){
         
@@ -330,11 +416,11 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
         ##else Consider depth  
       } else {
         
-        if (atDepth == "SST"){
+        if (atDepth_str == "SST"){
           
           tmp_df[[newColName]] <- tmp_ncdf[tmp_df$index_long, tmp_df$index_lat, 1, tmp_df$day]
           
-        } else if (atDepth == "SBT"){
+        } else if (atDepth_str == "SBT"){
           
           tmp_df[[newColName]] <- ifelse(all(is.na(tmp_ncdf[tmp_df$index_long, tmp_df$index_lat,,tmp_df$day]))
                                          , yes=NA
@@ -342,7 +428,14 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
           
         } else {
           
-          tmp_df[[newColName]] <- NA
+          result <- mapply(func_get_last_valid, 
+                           x = tmp_df$index_long, 
+                           y = tmp_df$index_lat, 
+                           MoreArgs = list(depth = atDepth_str),
+                           z = tmp_df$day)
+          tmp_df[[newColName]] <- result
+          rm(result)
+          
           
         }
         
@@ -351,7 +444,6 @@ func_assignNetCDF_BRAN_parallel <- function(list_df_name, required.packages = re
     }#end addDaily
     #####
   }
-  
 
   #--> Save output ####
   saveRDS(tmp_df, paste0(output_filePath, "/",tmp_name,"_netcdfBRANwithRaw.rds") )
