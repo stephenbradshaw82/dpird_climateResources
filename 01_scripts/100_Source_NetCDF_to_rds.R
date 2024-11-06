@@ -82,16 +82,11 @@ options(scipen = 999)
 #' start.year will be adjusted in BRAN code to have a minimum value of 1993
 #' end.year will be adjusted in BRAN code to have a minimum value of 1993
 
-start.year <- 2023#1990 
-end.year   <- 2024#Sys.Date() %>% year() %>% "+"(2)
+start.year <- 1990 
+end.year   <- Sys.Date() %>% year() %>% "+"(2)
 
 #--> [USER INPUT] Spatial Extents ####
 ## Boundaries taken from 000_ImagesForExtents for Western Australian waters
-# lng.west <- 110
-# lng.east <- 130
-# lat.north <- -12
-# lat.south <- -37
-
 ldf <- list()
 ldf[["NORTH"]] <- data.frame(
   Long = c(129.5, 129.5, 115.5, 115.5, 129.5),

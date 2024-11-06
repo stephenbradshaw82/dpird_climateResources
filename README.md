@@ -25,7 +25,7 @@ This repo provides a series of scripts and functions to:
 ## Spatial Extraction for netcdf outputs
 The current coding solution extracts netcdf outputs for the following spatial regions.
 
-![Spatial Regions](04_Visualisations/image_spatialExtents.png)
+![Spatial Regions](04_visualisations/image_spatialExtents.png)
 
 
 ## Files
